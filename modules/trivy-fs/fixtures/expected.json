@@ -1,0 +1,11 @@
+{
+  "description": "non-root USER가 없는 Dockerfile 검출",
+  "allowExtra": true,
+  "findings": [
+    {
+      "ruleId": "DS-0002",
+      "file": "Dockerfile",
+      "severity": "high"
+    }
+  ]
+}

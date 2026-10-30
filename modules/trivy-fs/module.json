@@ -1,0 +1,41 @@
+{
+  "id": "trivy-fs",
+  "name": "Trivy 파일시스템 통합 검사",
+  "version": "0.1.0",
+  "description": "프로젝트 파일시스템의 알려진 의존성 취약점, Docker/IaC 설정 오류, 비밀정보 노출 징후를 Trivy JSON으로 검사합니다.",
+  "category": "other",
+  "owasp": [
+    "A02:2025",
+    "A03:2025"
+  ],
+  "status": "experimental",
+  "tool": {
+    "name": "Trivy (Docker image)",
+    "homepage": "https://trivy.dev/",
+    "license": "Apache-2.0"
+  },
+  "requires": [
+    {
+      "bin": "docker",
+      "versionArgs": [
+        "--version"
+      ],
+      "install": "Docker Desktop을 설치하고 엔진을 실행하세요: https://docs.docker.com/desktop/"
+    }
+  ],
+  "ai": "none",
+  "options": {
+    "scannerSet": {
+      "type": "enum",
+      "label": "검사 영역",
+      "choices": [
+        "all",
+        "vuln",
+        "misconfig",
+        "secret"
+      ],
+      "default": "all"
+    }
+  },
+  "timeoutSec": 900
+}
