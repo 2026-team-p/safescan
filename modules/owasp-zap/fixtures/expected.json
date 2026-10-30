@@ -1,0 +1,7 @@
+{
+  "description": "별도 실행한 로컬 테스트 웹서버의 CSP 누락 경고를 확인합니다. 예제 서버는 의도적으로 CSP 응답 헤더를 설정하지 않습니다.",
+  "allowExtra": true,
+  "findings": [
+    { "ruleId": "10038-1", "severity": "medium" }
+  ]
+}
