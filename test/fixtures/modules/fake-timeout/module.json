@@ -1,0 +1,4 @@
+{
+  "id": "fake-timeout", "name": "fake-timeout", "version": "0.0.1", "description": "테스트용 가짜 모듈",
+  "category": "other", "tool": { "name": "node", "homepage": "https://nodejs.org" }, "timeoutSec": 1
+}

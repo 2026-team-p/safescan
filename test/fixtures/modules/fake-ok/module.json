@@ -1,0 +1,4 @@
+{
+  "id": "fake-ok", "name": "fake-ok", "version": "0.0.1", "description": "테스트용 가짜 모듈",
+  "category": "other", "tool": { "name": "node", "homepage": "https://nodejs.org" }, "requires": [{ "bin": "node", "install": "Node.js" }], "ai": "optional", "options": { "label": { "type": "string", "label": "라벨", "default": "기본" } }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "safescan",
+  "version": "0.1.0",
+  "description": "웹 개발자를 위한 오픈소스 보안 검사 프레임워크 — 모듈형 4단계 파이프라인(전처리 → 툴 → 후처리 → 검증)",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "safescan": "bin/safescan.js"
+  },
+  "exports": {
+    "./sdk": "./src/sdk/index.js",
+    "./package.json": "./package.json"
+  },
+  "engines": {
+    "node": ">=20.12"
+  },
+  "scripts": {
+    "safescan": "node bin/safescan.js",
+    "test": "node --test \"test/**/*.test.js\"",
+    "check": "node bin/safescan.js check",
+    "bench": "node bin/safescan.js bench",
+    "new": "node bin/safescan.js new"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0",
+    "cross-spawn": "^7.0.6"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "id": "npm-audit",
+  "name": "npm 의존성 취약점 검사",
+  "version": "0.1.0",
+  "description": "package-lock.json 에 고정된 npm 패키지 중 공개된 보안 권고(GitHub Advisory)에 해당하는 버전을 찾습니다.",
+  "category": "dependency",
+  "owasp": ["A03:2025"],
+  "cwe": ["CWE-1395"],
+  "status": "experimental",
+  "tool": {
+    "name": "npm audit",
+    "homepage": "https://docs.npmjs.com/cli/commands/npm-audit",
+    "license": "Artistic-2.0"
+  },
+  "requires": [
+    { "bin": "npm", "versionArgs": ["--version"], "install": "Node.js 를 설치하세요 (https://nodejs.org)" }
+  ],
+  "appliesWhen": { "files": ["package-lock.json", "npm-shrinkwrap.json"] },
+  "ai": "none",
+  "options": {
+    "omitDev": {
+      "type": "boolean",
+      "label": "개발 의존성 제외",
+      "description": "devDependencies 는 검사하지 않습니다 (배포물만 확인할 때)",
+      "default": false
+    }
+  },
+  "timeoutSec": 120
+}

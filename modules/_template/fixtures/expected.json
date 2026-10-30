@@ -1,0 +1,5 @@
+{
+  "description": "TODO: fixtures/vulnerable 에 심어 둔 취약점 설명",
+  "allowExtra": false,
+  "findings": []
+}

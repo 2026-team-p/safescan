@@ -1,0 +1,10 @@
+{
+  "name": "npm-audit-fixture",
+  "version": "1.0.0",
+  "private": true,
+  "description": "알려진 취약 버전을 고정한 예제 프로젝트 (npm-audit 모듈 벤치용, 실행하지 마세요)",
+  "dependencies": {
+    "lodash": "4.17.20",
+    "minimist": "1.2.5"
+  }
+}

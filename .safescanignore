@@ -1,0 +1,4 @@
+# SafeScan 이 이 저장소를 검사할 때 제외할 경로 (한 줄에 패턴 하나)
+# 모듈 벤치용 예제는 일부러 취약하게 만든 것이므로 검사 대상에서 뺍니다.
+modules/*/fixtures/
+test/fixtures/

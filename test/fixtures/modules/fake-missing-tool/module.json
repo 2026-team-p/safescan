@@ -1,0 +1,4 @@
+{
+  "id": "fake-missing-tool", "name": "fake-missing-tool", "version": "0.0.1", "description": "테스트용 가짜 모듈",
+  "category": "other", "tool": { "name": "node", "homepage": "https://nodejs.org" }, "requires": [{ "bin": "safescan-no-such-tool-xyz", "install": "설치 안내 문구" }]
+}

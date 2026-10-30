@@ -1,0 +1,17 @@
+{
+  "id": "__MODULE_ID__",
+  "name": "__MODULE_NAME__",
+  "version": "0.1.0",
+  "description": "TODO: 무엇을 찾는 모듈인지 한두 문장으로 적으세요. AI 자동 추천의 근거로 쓰입니다.",
+  "category": "__CATEGORY__",
+  "owasp": [],
+  "status": "experimental",
+  "tool": {
+    "name": "TODO",
+    "homepage": "https://example.com/TODO"
+  },
+  "requires": [],
+  "appliesWhen": { "files": [] },
+  "ai": "none",
+  "timeoutSec": 300
+}

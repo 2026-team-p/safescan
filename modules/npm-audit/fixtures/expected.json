@@ -1,0 +1,9 @@
+{
+  "description": "lodash@4.17.20, minimist@1.2.5 에 알려진 권고. 권고 DB 는 계속 늘어나므로 목록 밖 결과는 오탐으로 세지 않습니다(allowExtra).",
+  "allowExtra": true,
+  "findings": [
+    { "ruleId": "GHSA-xvch-5gv4-984h", "dependency": "minimist", "severity": "critical", "file": "package-lock.json" },
+    { "ruleId": "GHSA-35jh-r3h4-6jhm", "dependency": "lodash", "severity": "high", "file": "package-lock.json" },
+    { "ruleId": "GHSA-29mw-wpgm-hmr9", "dependency": "lodash", "severity": "medium", "file": "package-lock.json" }
+  ]
+}

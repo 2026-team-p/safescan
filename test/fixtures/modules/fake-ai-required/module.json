@@ -1,0 +1,4 @@
+{
+  "id": "fake-ai-required", "name": "fake-ai-required", "version": "0.0.1", "description": "테스트용 가짜 모듈",
+  "category": "other", "tool": { "name": "node", "homepage": "https://nodejs.org" }, "ai": "required"
+}
