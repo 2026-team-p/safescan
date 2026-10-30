@@ -20,11 +20,17 @@ safescan scan ../my-web-app   # npm link 없이: node bin/safescan.js scan ../my
 |---|---|
 | `safescan list [경로]` | 모듈 목록, 경로를 주면 적용 여부 표시 |
 | `safescan scan [경로]` | 프로젝트에 맞는 모듈을 골라 검사 (`-m a,b`, `--all`, `-o 모듈.키=값`, `--json`) |
+| `safescan issues [경로]` | 쌓인 이슈를 발견됨 · 해결 중 · 조치 완료로 보기 (`--all`, `--show <id>` 로 타임라인) |
 | `safescan new <id>` | 템플릿으로 새 모듈 만들기 |
 | `safescan check [id…]` | 모듈 계약 검사 |
 | `safescan bench [id…]` | 예제 프로젝트로 정확도 측정 · 기록 |
 
-검사 결과는 대상 프로젝트의 `.safescan/runs/<runId>/` 에 `run.json`, `events.jsonl` 로 저장됩니다.
+검사 결과는 대상 프로젝트의 `.safescan/runs/<runId>/` 에 `run.json`, `events.jsonl` 로 저장되고,
+결과는 `.safescan/issues.json` 의 **이슈 아이템**으로 이어집니다. 같은 문제는 재검사해도 같은 이슈에 기록이 쌓이고
+(발견 → 변경 → 조치 완료 → 재발견), 연결된 결과(예: 한 패키지의 보안 권고 여러 건)는 이슈 하나로 묶입니다.
+
+모듈별로 필요한 외부 도구가 다릅니다 (`npm-audit` → npm, `gitleaks` → [Gitleaks](https://github.com/gitleaks/gitleaks)).
+도구가 없으면 해당 모듈은 설치 안내와 함께 건너뜁니다.
 
 ### 검사에서 뺄 경로 (`.safescanignore`)
 
@@ -79,7 +85,7 @@ AI 를 쓰는 모듈만 영향을 받습니다. 설정하지 않아도 AI 없는
 
 1. 로컬 UI (`safescan run` → `http://localhost:3000`) — 모듈 토글, 실행 스텝퍼, 투명성 콘솔, 텔레메트리
 2. AI 모듈 자동 추천 (프로젝트 profile + module.json 설명 기반)
-3. 칸반 이슈 관리 · 스레드형 이력 (Finding fingerprint 기반)
+3. 칸반 UI 와 이슈 상태 변경(해결 중) · 사용자 · AI 기록 (이슈 저장소와 자동 타임라인은 완료)
 4. AI 수정 요청 · Diff 리뷰 · 자동 재검증
 
 ## 라이선스

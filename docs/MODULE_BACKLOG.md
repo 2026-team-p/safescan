@@ -9,7 +9,7 @@
 | `osv-scanner` | dependency | OSV-Scanner | A03 | yarn.lock, pnpm-lock.yaml, requirements.txt, pom.xml, go.mod … | npm 외 생태계 의존성 |
 | `semgrep-injection` | sast | Semgrep CE | A05 | *.js, *.ts, *.py, *.java | SQLi · XSS · 명령 주입. 규칙은 모듈 폴더에 고정 |
 | `semgrep-exception` | sast | Semgrep CE | A10 | *.js, *.ts, *.py, *.java | 빈 catch, 스택 트레이스 노출, 실패 시 열림(fail-open) |
-| `gitleaks` | secrets | Gitleaks | A07 | (항상) | 하드코딩된 키 · 토큰. 결과에 비밀 값 원문을 남기지 않기 |
+| `gitleaks` | secrets | Gitleaks | A07 | (항상) | **완료** — 하드코딩된 키 · 토큰, `--redact` 로 원문을 남기지 않음 |
 | `eslint-security` | sast | eslint-plugin-security | A05 | package.json | JS 전용 가벼운 정적 분석 |
 | `bandit` | sast | Bandit | A05 | *.py | Python 백엔드 |
 | `retire-js` | dependency | Retire.js | A03 | *.js | 번들 · 정적 파일에 섞인 오래된 프론트 라이브러리 |

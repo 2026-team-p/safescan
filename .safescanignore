@@ -2,3 +2,4 @@
 # 모듈 벤치용 예제는 일부러 취약하게 만든 것이므로 검사 대상에서 뺍니다.
 modules/*/fixtures/
 test/fixtures/
+test/.tmp-*/

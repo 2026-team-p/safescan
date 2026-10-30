@@ -7,6 +7,7 @@ import { join, resolve } from 'node:path';
 import { SEVERITIES } from '../sdk/index.js';
 import { createAiProvider } from './ai.js';
 import { createContext, SkipSignal } from './context.js';
+import { syncIssueStore } from './issues.js';
 import { CommandNotFoundError, CommandTimeoutError, runCommand } from './exec.js';
 import { createProjectApi, scanProject } from './project.js';
 import { loadModule } from './registry.js';
@@ -30,7 +31,7 @@ class ModuleTimeoutError extends Error {
  * @param {import('./ai.js').AiProvider} [p.aiProvider]
  * @param {(event: import('../sdk/types.js').RunEvent) => void} [p.onEvent]
  * @param {boolean} [p.strict]   true 면 잘못된 Finding 이 하나라도 있으면 모듈 실패 (bench · check 용)
- * @param {string|null} [p.storeDir]  결과 저장 위치. 기본 <projectRoot>/.safescan, null 이면 저장 안 함
+ * @param {string|null} [p.storeDir]  결과 · 이슈 저장 위치. 기본 <projectRoot>/.safescan, null 이면 저장 안 함
  * @returns {Promise<import('../sdk/types.js').RunResult & { savedTo?: string }>}
  */
 export async function runScan({
@@ -58,9 +59,11 @@ export async function runScan({
 
   /** @type {import('../sdk/types.js').RunResult} */
   const result = { runId, projectRoot: root, startedAt, finishedAt: new Date().toISOString(), profile, modules: results };
+  const baseDir = storeDir === null ? null : (storeDir ?? join(root, '.safescan'));
+  if (baseDir) result.issues = await syncIssueStore(baseDir, result);
   emit({ type: 'run:end', result });
 
-  const dir = storeDir === null ? null : join(storeDir ?? join(root, '.safescan'), 'runs', runId);
+  const dir = baseDir && join(baseDir, 'runs', runId);
   if (dir) {
     await mkdir(dir, { recursive: true });
     await writeFile(join(dir, 'run.json'), JSON.stringify(result, null, 2));

@@ -3,12 +3,13 @@ import { join, relative, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { createAiProvider } from '../core/ai.js';
 import { benchModule, readExpected } from '../core/bench.js';
+import { findIssue, loadIssues } from '../core/issues.js';
 import { CommandNotFoundError, runCommand } from '../core/exec.js';
 import { appliesTo, scanProject } from '../core/project.js';
 import { discoverModules, loadModule, scaffoldModule } from '../core/registry.js';
 import { runScan } from '../core/runner.js';
 import { CATEGORIES } from '../sdk/index.js';
-import { banner, c, createRenderer, fmtMs, fmtUsd, pad, printSummary } from './render.js';
+import { banner, c, createRenderer, fmtMs, fmtUsd, pad, printIssue, printIssueBoard, printSummary } from './render.js';
 
 const HELP = `
 ${banner()}  웹 개발자를 위한 보안 검사 프레임워크
@@ -22,6 +23,8 @@ ${banner()}  웹 개발자를 위한 보안 검사 프레임워크
       -v, --verbose                     도구 출력까지 모두 표시
           --json                        결과를 JSON 으로 출력
           --no-save                     .safescan/runs 에 저장하지 않음
+  safescan issues [경로] [--all] [--show id] [--json]
+                                        검사 결과로 쌓인 이슈 (발견됨 · 해결 중 · 조치 완료)
   safescan new   <id> [--name 이름] [--category ${CATEGORIES.join('|')}]
                                         템플릿으로 새 모듈 만들기
   safescan check [id...]                모듈 계약 검사 (매니페스트 · 코드 · fixtures · 필요 도구)
@@ -35,7 +38,7 @@ AI 설정 (선택)
 
 export async function main(argv) {
   const [command = 'help', ...rest] = argv;
-  const commands = { list, scan, new: create, check, bench, help: async () => console.log(HELP) };
+  const commands = { list, scan, issues, new: create, check, bench, help: async () => console.log(HELP) };
   const run = commands[command] ?? (command === '-h' || command === '--help' ? commands.help : null);
   if (!run) {
     console.error(c.err(`알 수 없는 명령: ${command}`));
@@ -123,6 +126,27 @@ async function scan(args) {
   if (values.json) console.log(JSON.stringify(result, null, 2));
   else printSummary(result);
   return result.modules.some((m) => m.status === 'failed' || m.status === 'timeout') ? 1 : 0;
+}
+
+async function issues(args) {
+  const { values, positionals } = parseArgs({
+    args,
+    allowPositionals: true,
+    options: { all: { type: 'boolean' }, show: { type: 'string' }, json: { type: 'boolean' } },
+  });
+  const store = await loadIssues(join(resolve(positionals[0] ?? '.'), '.safescan'));
+
+  if (values.show) {
+    const issue = findIssue(store, values.show) ?? fail(`이슈를 찾을 수 없습니다: ${values.show}`);
+    if (values.json) console.log(JSON.stringify(issue, null, 2));
+    else printIssue(issue);
+    return 0;
+  }
+  const list = values.all ? store.issues : store.issues.filter((i) => i.status !== 'resolved');
+  if (values.json) console.log(JSON.stringify(list, null, 2));
+  else if (!store.issues.length) console.log('아직 이슈가 없습니다. safescan scan 으로 검사하면 결과가 이슈로 쌓입니다.');
+  else printIssueBoard(store.issues, { showResolved: values.all });
+  return 0;
 }
 
 async function create(args) {

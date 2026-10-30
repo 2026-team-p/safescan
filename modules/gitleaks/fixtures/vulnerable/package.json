@@ -1,0 +1,10 @@
+{
+  "name": "leaky-shop-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "비밀 값이 코드에 하드코딩된 더미 쇼핑몰 API (gitleaks 모듈 벤치용, 모든 값은 가짜)",
+  "main": "src/server.js",
+  "dependencies": {
+    "express": "^4.21.0"
+  }
+}
