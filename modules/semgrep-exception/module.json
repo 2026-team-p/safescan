@@ -1,0 +1,25 @@
+{
+  "id": "semgrep-exception",
+  "name": "예외 처리 결함 정적 분석 (Semgrep)",
+  "version": "0.1.0",
+  "description": "JavaScript · TypeScript · Python · Java 소스에서 빈 catch, 스택 트레이스의 클라이언트 노출, 인증 · 검증 함수의 오류 시 허용(fail-open) 같은 예외 처리 결함을 Semgrep 규칙으로 찾습니다.",
+  "category": "sast",
+  "owasp": ["A10:2025"],
+  "cwe": ["CWE-390", "CWE-209", "CWE-636"],
+  "status": "experimental",
+  "tool": {
+    "name": "Semgrep CE",
+    "homepage": "https://semgrep.dev/docs/",
+    "license": "LGPL-2.1"
+  },
+  "requires": [
+    {
+      "bin": "semgrep",
+      "versionArgs": ["--version"],
+      "install": "pip install semgrep (Windows 에서 안 되면 WSL 또는 Docker 를 사용하세요)"
+    }
+  ],
+  "appliesWhen": { "files": ["*.js", "*.jsx", "*.mjs", "*.cjs", "*.ts", "*.tsx", "*.py", "*.java"] },
+  "ai": "none",
+  "timeoutSec": 300
+}

@@ -1,0 +1,15 @@
+{
+  "description": "JS · Python · Java 예제에 빈 catch, 스택 트레이스 노출, fail-open, printStackTrace 를 심어 두었고, 같은 파일에 안전한 코드(로그 남기기, 일반 메시지 응답, 오류 시 거부)도 함께 넣어 오탐을 확인합니다.",
+  "allowExtra": false,
+  "findings": [
+    { "ruleId": "safescan.exc.js.empty-catch", "file": "src/handler.js", "line": 5, "severity": "low" },
+    { "ruleId": "safescan.exc.js.stack-trace-exposure", "file": "src/handler.js", "line": 12, "severity": "medium" },
+    { "ruleId": "safescan.exc.js.fail-open", "file": "src/handler.js", "line": 16, "severity": "high" },
+    { "ruleId": "safescan.exc.python.empty-except", "file": "src/service.py", "line": 9, "severity": "low" },
+    { "ruleId": "safescan.exc.python.stack-trace-exposure", "file": "src/service.py", "line": 19, "severity": "medium" },
+    { "ruleId": "safescan.exc.python.fail-open", "file": "src/service.py", "line": 23, "severity": "high" },
+    { "ruleId": "safescan.exc.java.empty-catch", "file": "src/Account.java", "line": 4, "severity": "low" },
+    { "ruleId": "safescan.exc.java.print-stack-trace", "file": "src/Account.java", "line": 14, "severity": "low" },
+    { "ruleId": "safescan.exc.java.fail-open", "file": "src/Account.java", "line": 19, "severity": "high" }
+  ]
+}
