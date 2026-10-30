@@ -12,10 +12,14 @@
     "./package.json": "./package.json"
   },
   "engines": {
-    "node": ">=20.12"
+    "node": ">=20.19"
   },
   "scripts": {
     "safescan": "node bin/safescan.js",
+    "start": "node bin/safescan.js run",
+    "prepare": "vite build ui --logLevel warn",
+    "build:ui": "vite build ui",
+    "dev:ui": "vite ui",
     "test": "node --test \"test/**/*.test.js\"",
     "check": "node bin/safescan.js check",
     "bench": "node bin/safescan.js bench",
@@ -23,6 +27,13 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "cross-spawn": "^7.0.6"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.1.2",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "vite": "^8.3.5"
   }
 }

@@ -4,7 +4,7 @@ SafeScan 의 모든 검사 기능은 **모듈**입니다. 모듈은 `modules/<id
 정해진 계약만 지키면 CLI · 로컬 UI · AI 추천 · 검증 기록에 자동으로 연결됩니다.
 
 - 계약 원문: [`src/sdk/types.d.ts`](../src/sdk/types.d.ts)
-- 기준 예시: [`modules/npm-audit/`](../modules/npm-audit/)
+- 기준 예시: [`modules/npm-audit/`](../modules/npm-audit/) (lockfile 기반), [`modules/gitleaks/`](../modules/gitleaks/) (폴더를 스스로 훑는 도구 · 비밀 값 가리기)
 - 만들 모듈 후보: [`MODULE_BACKLOG.md`](./MODULE_BACKLOG.md)
 
 ---
@@ -83,7 +83,8 @@ A08 Software or Data Integrity Failures · A09 Security Logging and Alerting Fai
 ### 전처리
 - 프로젝트 파일은 **`ctx.project` 로만** 읽습니다 (`findFiles`, `readText`, `exists`). `node:fs` 로 프로젝트를 직접 읽지 마세요 — 프로젝트 밖 접근이 막혀 있습니다.
 - 검사 대상은 `ctx.project.findFiles` 로 찾습니다. 사용자가 `.safescanignore` 에 적은 경로가 자동으로 빠지므로 모듈이 따로 처리할 필요가 없습니다.
-  도구가 폴더 전체를 스스로 훑는 경우(예: `semgrep scan .`)에는 제외 규칙이 적용되지 않으니, `findFiles` 로 얻은 파일 목록을 도구에 넘기거나 도구의 제외 옵션에 `ctx.project.profile.ignore` 를 전달하세요.
+  도구가 폴더 전체를 스스로 훑는 경우(예: `semgrep scan .`, `gitleaks dir .`)에는 제외 규칙이 적용되지 않으니,
+  `findFiles` 로 얻은 파일 목록을 도구에 넘기거나, 후처리에서 `ctx.project.isIgnored(파일)` 로 결과를 거르세요 (예: `modules/gitleaks`).
 - 도구 결과에 없는 정보(설치 버전, 줄 번호, 프레임워크 종류 등)는 여기서 미리 뽑아 두세요.
 - 검사할 대상이 없으면 `ctx.skip('이유')` — 실패가 아니라 '건너뜀'으로 기록됩니다.
 
@@ -131,10 +132,18 @@ A08 Software or Data Integrity Failures · A09 Security Logging and Alerting Fai
 
 정한 기준은 모듈 README 의 "신뢰도 기준"에 적습니다.
 
-### fingerprint
-같은 문제를 재검사 사이에서 **같은 이슈 스레드로 이어 주는 키**입니다. 생략하면 프레임워크가
-`moduleId · ruleId · 파일 · (의존성 이름 | snippet | 줄 번호)` 로 만듭니다.
-줄 번호는 코드가 바뀌면 흔들리므로, 코드 위치형 결과는 `location.snippet` 을 채워 주는 것이 좋습니다.
+### fingerprint 와 group — 이슈 아이템이 되는 방식
+검사 결과를 저장하면(`scan` 기본 동작) 결과가 `<프로젝트>/.safescan/issues.json` 의 **이슈 아이템**(칸반 카드 + 타임라인)으로 쌓입니다.
+
+| 키 | 역할 | 생략하면 |
+|---|---|---|
+| `fingerprint` | 재검사 사이에서 **같은 결과**를 알아봄 | `moduleId · ruleId · 파일 · (의존성 이름 \| snippet \| 줄 번호)` |
+| `group` | **같은 조치로 함께 해결되는 결과**를 이슈 하나(스레드 하나)로 묶음 | 의존성: `파일 + 패키지 이름`, 그 밖: fingerprint 하나당 이슈 하나 |
+
+- 재검사에서 그룹이 그대로면 기록이 늘지 않고, 일부가 바뀌면 "변경", 모두 사라지면 "조치 완료", 다시 나타나면 "재발견"이 타임라인에 남습니다.
+- 실패 · 건너뜀으로 끝난 모듈은 결과가 없어도 이슈를 조치 완료로 옮기지 않습니다.
+- 줄 번호는 코드가 바뀌면 흔들립니다. 코드 위치형 결과는 `location.snippet` 을 채우거나 fingerprint 를 직접 만드세요
+  (줄이 밀려도 같은 이슈로 이어지는 예: `modules/gitleaks` — 파일 + 규칙 + 가린 일치 문자열 + 순번).
 
 ---
 

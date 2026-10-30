@@ -91,8 +91,11 @@ export function normalizeFinding(f, moduleId) {
     }
   }
   if (f.dependency !== undefined && !isStr(f.dependency?.name)) errors.push('dependency.name 이 필요합니다');
+  if (f.fingerprint !== undefined && !isStr(f.fingerprint)) errors.push('fingerprint 는 문자열이어야 합니다');
+  if (f.group !== undefined && !isStr(f.group)) errors.push('group 은 문자열이어야 합니다');
   if (errors.length) return { errors };
 
+  const fingerprint = f.fingerprint ?? fingerprintOf(moduleId, f);
   return {
     errors,
     finding: {
@@ -100,7 +103,9 @@ export function normalizeFinding(f, moduleId) {
       moduleId,
       owasp: f.owasp ?? [],
       cwe: f.cwe ?? [],
-      fingerprint: f.fingerprint ?? fingerprintOf(moduleId, f),
+      fingerprint,
+      // 의존성은 패키지를 올리면 권고 여러 건이 함께 해결되므로 한 이슈로 묶습니다.
+      group: f.group ?? (f.dependency ? `dependency:${f.location?.file ?? ''}:${f.dependency.name}` : fingerprint),
     },
   };
 }

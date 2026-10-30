@@ -2,6 +2,9 @@
 import { meterAi } from './ai.js';
 import { formatCommand, runCommand } from './exec.js';
 
+// eslint-disable-next-line no-control-regex
+const ANSI = /\x1b\[[0-9;?]*[ -/]*[@-~]/g;
+
 /** ctx.skip() 이 던지는 신호. 러너가 받아 모듈을 '건너뜀'으로 끝냅니다. */
 export class SkipSignal extends Error {
   constructor(reason) {
@@ -49,7 +52,9 @@ export function createContext({ runId, stage, entry, project, options, tmpDir, s
         signal,
         onLine: (stream, line) => {
           if (stream === 'stdout' && opts.quiet) return;
-          if (line.trim()) log.debug(line);
+          // 도구가 넣는 터미널 색상 코드는 콘솔 · UI 에서 깨져 보이므로 지웁니다.
+          const text = line.replace(ANSI, '');
+          if (text.trim()) log.debug(text);
         },
       });
       record.code = result.code;

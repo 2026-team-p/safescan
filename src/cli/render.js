@@ -97,5 +97,53 @@ export function printSummary(result) {
     console.log(`${SEVERITY_LABEL[f.severity]}  ${f.title} ${c.dim(`(${f.ruleId})`)}`);
     console.log(c.dim(`          ${[f.moduleId, where, dep].filter(Boolean).join(' · ')}`));
   }
-  if (result.savedTo) console.log(`\n${c.dim('저장:')} ${relative(process.cwd(), result.savedTo) || result.savedTo}`);
+  if (result.issues) {
+    const s = result.issues;
+    console.log(`\n${c.bold('이슈')}  새로 ${s.created} · 바뀜 ${s.changed} · 다시 열림 ${s.reopened} · 해결 ${c.ok(s.resolved)} · 열린 이슈 ${c.bold(s.open)}`);
+  }
+  if (result.savedTo) console.log(`${c.dim('저장:')} ${relative(process.cwd(), result.savedTo) || result.savedTo}`);
+}
+
+const ISSUE_STATUS = { discovered: '발견됨', in_progress: '해결 중', resolved: '조치 완료' };
+const THREAD_LABEL = { detected: '발견', changed: '변경', resolved: '해결', reopened: '재발견' };
+
+const whereOf = (f) => (f.location ? `${f.location.file}${f.location.startLine ? `:${f.location.startLine}` : ''}` : '');
+
+function fmtTime(iso) {
+  const d = new Date(iso);
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+
+/** 칸반 보드처럼 상태별로 이슈를 보여 줍니다. */
+export function printIssueBoard(issues, { showResolved = false } = {}) {
+  for (const status of /** @type {const} */ (['discovered', 'in_progress', 'resolved'])) {
+    const column = issues.filter((i) => i.status === status);
+    if (status === 'resolved' && !showResolved) {
+      if (column.length) console.log(c.dim(`\n${ISSUE_STATUS.resolved} ${column.length}건은 --all 로 볼 수 있습니다`));
+      continue;
+    }
+    console.log(`\n${c.sky(c.bold(ISSUE_STATUS[status]))} ${c.dim(`(${column.length})`)}`);
+    for (const issue of column) {
+      const where = whereOf(issue.findings[0]);
+      console.log(`  ${c.dim(issue.id)}  ${SEVERITY_LABEL[issue.severity]}  ${issue.title}  ${c.dim([where, issue.moduleId].filter(Boolean).join(' · '))}`);
+    }
+  }
+  console.log(c.dim('\n자세히 보기: safescan issues <경로> --show <id>'));
+}
+
+/** 이슈 하나의 결과와 타임라인(스레드) */
+export function printIssue(issue) {
+  console.log(`\n${c.sky(c.bold('◆'))} ${c.bold(issue.title)}`);
+  console.log(c.dim(`  ${issue.id} · ${issue.moduleId} · ${ISSUE_STATUS[issue.status]}`), SEVERITY_LABEL[issue.severity]);
+  console.log(`\n  ${c.bold(`결과 ${issue.findings.length}건`)}${issue.status === 'resolved' ? c.dim(' (마지막으로 발견된 내용)') : ''}`);
+  for (const f of issue.findings) {
+    console.log(`    ${whereOf(f)}  ${f.title} ${c.dim(`(${f.ruleId})`)}`);
+    if (f.location?.snippet) console.log(c.dim(`      ${f.location.snippet}`));
+    if (f.remediation) console.log(c.dim(`      조치: ${f.remediation}`));
+  }
+  console.log(`\n  ${c.bold('타임라인')}`);
+  for (const t of issue.thread) {
+    console.log(`    ${c.dim(fmtTime(t.at))}  ${pad(THREAD_LABEL[t.type] ?? t.type, 6)} ${t.message}`);
+  }
 }

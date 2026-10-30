@@ -100,10 +100,15 @@ export interface Finding {
   remediation?: string;
   references?: string[];
   /**
-   * 같은 문제를 재검사 사이에서 같은 것으로 묶는 키. 이슈 스레드가 이 값으로 이어집니다.
+   * 같은 문제를 재검사 사이에서 같은 것으로 알아보는 키.
    * 생략하면 프레임워크가 moduleId · ruleId · 파일 · (의존성 이름 | 코드 조각 | 줄 번호)로 만듭니다.
    */
   fingerprint?: string;
+  /**
+   * 같은 조치로 함께 해결되는 결과를 하나의 이슈(스레드)로 묶는 키. 모듈 안에서만 의미가 있습니다.
+   * 생략하면 의존성 결과는 "파일 + 패키지 이름"(한 번 올리면 같이 해결), 나머지는 fingerprint 하나당 이슈 하나입니다.
+   */
+  group?: string;
   /** 도구 원본 레코드 (디버깅용). 너무 크면 잘라서 넣으세요. */
   raw?: unknown;
 }
@@ -120,6 +125,7 @@ export interface Location {
 export interface NormalizedFinding extends Finding {
   moduleId: string;
   fingerprint: string;
+  group: string;
   owasp: string[];
   cwe: string[];
 }
@@ -189,6 +195,11 @@ export interface ProjectApi {
   readText(relPath: string): Promise<string>;
   /** node_modules · .git 등과 .safescanignore 에 맞는 경로를 제외하고 파일을 찾습니다. 상대 경로를 돌려줍니다. */
   findFiles(query?: FindFilesQuery): Promise<string[]>;
+  /**
+   * findFiles 가 빼는 경로인지 알려 줍니다. 도구가 폴더를 스스로 훑는 경우(gitleaks dir 등)
+   * 후처리에서 이 함수로 결과를 걸러 사용자 제외 규칙을 지킵니다.
+   */
+  isIgnored(relPath: string): boolean;
 }
 
 export interface FindFilesQuery {
@@ -332,6 +343,60 @@ export interface RunResult {
   finishedAt: string;
   profile: ProjectProfile;
   modules: ModuleRunResult[];
+  /** 결과를 저장한 실행이면 이슈 저장소 반영 결과 */
+  issues?: IssueSyncSummary;
+}
+
+// ───────────────────────────── 이슈 아이템 ─────────────────────────────
+
+/** 칸반 열: 발견됨 → 해결 중 → 조치 완료 */
+export type IssueStatus = 'discovered' | 'in_progress' | 'resolved';
+
+/**
+ * 칸반 카드 하나 = 이슈 하나. 같은 group 의 결과를 묶고, 재검사를 거치며 하나의 스레드로 이어집니다.
+ * <프로젝트>/.safescan/issues.json 에 저장됩니다.
+ */
+export interface Issue {
+  /** moduleId + group 으로 만든 고정 ID */
+  id: string;
+  moduleId: string;
+  group: string;
+  title: string;
+  /** 묶인 결과 중 가장 높은 위험도 */
+  severity: Severity;
+  status: IssueStatus;
+  /** 가장 최근 검사에서 이 이슈에 속한 결과 (해결된 이슈는 마지막으로 본 결과) */
+  findings: NormalizedFinding[];
+  createdAt: string;
+  updatedAt: string;
+  lastSeenRunId: string;
+  /** 시간순 타임라인. 앞으로 AI 수정 제안 · 사용자 옵션 변경도 여기에 쌓입니다. */
+  thread: ThreadEntry[];
+}
+
+export interface ThreadEntry {
+  at: string;
+  type:
+    | 'detected' | 'changed' | 'resolved' | 'reopened'   // 검사 결과 반영 (safescan)
+    | 'status'                                           // 칸반 열 이동
+    | 'patch_requested' | 'patch_proposed'               // AI 수정 요청 · 제안
+    | 'patch_failed'                                     // AI 가 수정안을 만들지 못함
+    | 'patch_accepted' | 'patch_rejected'                // 사용자의 수락 · 거절 · 요청 취소
+    | 'verify_failed';                                   // 수정 후 재검사에서 여전히 발견
+  actor: 'safescan' | 'user' | 'ai';
+  runId?: string;
+  message: string;
+  /** 요청 옵션 · AI 설명 등 기록별 추가 정보 */
+  data?: Record<string, unknown>;
+}
+
+export interface IssueSyncSummary {
+  created: number;
+  changed: number;
+  reopened: number;
+  resolved: number;
+  /** 반영 후 열려 있는(조치 완료가 아닌) 이슈 수 */
+  open: number;
 }
 
 /**

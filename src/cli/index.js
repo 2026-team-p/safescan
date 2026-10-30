@@ -3,17 +3,21 @@ import { join, relative, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { createAiProvider } from '../core/ai.js';
 import { benchModule, readExpected } from '../core/bench.js';
+import { findIssue, loadIssues } from '../core/issues.js';
 import { CommandNotFoundError, runCommand } from '../core/exec.js';
 import { appliesTo, scanProject } from '../core/project.js';
-import { discoverModules, loadModule, scaffoldModule } from '../core/registry.js';
+import { discoverModules, loadModule, PACKAGE_ROOT, scaffoldModule } from '../core/registry.js';
 import { runScan } from '../core/runner.js';
 import { CATEGORIES } from '../sdk/index.js';
-import { banner, c, createRenderer, fmtMs, fmtUsd, pad, printSummary } from './render.js';
+import { banner, c, createRenderer, fmtMs, fmtUsd, pad, printIssue, printIssueBoard, printSummary } from './render.js';
 
 const HELP = `
 ${banner()}  웹 개발자를 위한 보안 검사 프레임워크
 
 사용법
+  safescan run   [경로] [-p 3000]       로컬 UI 실행 (http://localhost:3000)
+  safescan setup [--apply]              Claude Code · Codex 에 SafeScan 을 연결하는 방법 (--apply: Claude Code 에 바로 등록)
+  safescan mcp   [-p 3000]              MCP 서버 (Claude Code 가 실행합니다. 로컬 UI 도 함께 켜짐)
   safescan list  [경로]                 모듈 목록 (경로를 주면 적용 여부도 표시)
   safescan scan  [경로] [옵션]          검사 실행 (기본: 프로젝트에 맞는 모듈 자동 선택)
       -m, --modules a,b                 실행할 모듈 지정
@@ -22,6 +26,8 @@ ${banner()}  웹 개발자를 위한 보안 검사 프레임워크
       -v, --verbose                     도구 출력까지 모두 표시
           --json                        결과를 JSON 으로 출력
           --no-save                     .safescan/runs 에 저장하지 않음
+  safescan issues [경로] [--all] [--show id] [--json]
+                                        검사 결과로 쌓인 이슈 (발견됨 · 해결 중 · 조치 완료)
   safescan new   <id> [--name 이름] [--category ${CATEGORIES.join('|')}]
                                         템플릿으로 새 모듈 만들기
   safescan check [id...]                모듈 계약 검사 (매니페스트 · 코드 · fixtures · 필요 도구)
@@ -35,18 +41,114 @@ AI 설정 (선택)
 
 export async function main(argv) {
   const [command = 'help', ...rest] = argv;
-  const commands = { list, scan, new: create, check, bench, help: async () => console.log(HELP) };
-  const run = commands[command] ?? (command === '-h' || command === '--help' ? commands.help : null);
-  if (!run) {
+  const commands = { run, setup, mcp, list, scan, issues, new: create, check, bench, help: async () => console.log(HELP) };
+  const handler = commands[command] ?? (command === '-h' || command === '--help' ? commands.help : null);
+  if (!handler) {
     console.error(c.err(`알 수 없는 명령: ${command}`));
     console.log(HELP);
     return 1;
   }
   try {
-    return (await run(rest)) ?? 0;
+    return (await handler(rest)) ?? 0;
   } catch (err) {
     console.error(c.err(`오류: ${err.message}`));
     return 1;
+  }
+}
+
+const LOGO = [
+  '╔═╗┌─┐┌─┐┌─┐  ╔═╗┌─┐┌─┐┌┐┌',
+  '╚═╗├─┤├┤ ├┤   ╚═╗│  ├─┤│││',
+  '╚═╝┴ ┴└  └─┘  ╚═╝└─┘┴ ┴┘└┘',
+];
+
+async function run(args) {
+  const { values, positionals } = parseArgs({
+    args,
+    allowPositionals: true,
+    options: { port: { type: 'string', short: 'p' } },
+  });
+  const root = resolve(positionals[0] ?? '.');
+  if (!(await isDir(root))) fail(`폴더가 아닙니다: ${root}`);
+  const { startServer, UI_DIR } = await import('../server/index.js');
+  if (!(await isFile(join(UI_DIR, 'index.html')))) {
+    console.log(c.warn('! UI 가 아직 빌드되지 않았습니다. safescan 폴더에서 npm run build:ui 를 먼저 실행하세요.'));
+  }
+  const server = await startServer({
+    projectRoot: root,
+    port: values.port ? Number(values.port) : 3000,
+    strictPort: Boolean(values.port),
+    aiProvider: createAiProvider(),
+  });
+
+  // 지원하는 터미널에서는 링크를 바로 클릭할 수 있습니다 (OSC 8). 주소에는 이번 실행의 접속 토큰이 들어 있습니다.
+  const link = process.stdout.isTTY ? `\x1b]8;;${server.uiUrl}\x1b\\${server.uiUrl}\x1b]8;;\x1b\\` : server.uiUrl;
+  console.log(`\n${LOGO.map((line) => `  ${c.sky(line)}`).join('\n')}\n`);
+  console.log(`  ${c.dim('대상')}  ${root}`);
+  console.log(`  ${c.dim('UI  ')}  ${c.bold(c.sky(link))}`);
+  console.log(`  ${c.dim('AI  ')}  ${createAiProvider().available ? 'API 키' : '없음 (규칙 기반 추천만) — Claude 에 연결하려면 safescan setup'}`);
+  console.log(c.dim('\n  Ctrl+C 로 종료합니다'));
+
+  await new Promise((done) => {
+    const stop = () => server.close().then(done);
+    process.once('SIGINT', stop);
+    process.once('SIGTERM', stop);
+  });
+  return 0;
+}
+
+/** Claude Code 가 띄우는 MCP 서버. stdout 은 MCP 통신 전용이라 화면 출력은 모두 stderr 로 보냅니다. */
+async function mcp(args) {
+  console.log = console.error;
+  const { values } = parseArgs({ args, allowPositionals: false, options: { port: { type: 'string', short: 'p' } } });
+  const { startMcp } = await import('../mcp/index.js');
+  const { server, close } = await startMcp({
+    port: values.port ? Number(values.port) : 3000,
+    strictPort: Boolean(values.port),
+  });
+  console.error(`SafeScan MCP: ${server.uiUrl} (${process.cwd()})`);
+  await new Promise((done) => {
+    const stop = () => close().then(done);
+    process.stdin.once('end', stop); // Claude Code 가 끝나면 stdin 이 닫힙니다
+    process.stdin.once('close', stop);
+    process.once('SIGINT', stop);
+    process.once('SIGTERM', stop);
+  });
+  return 0;
+}
+
+/** Claude Code · Codex 에 SafeScan 을 연결하는 명령을 알려 주거나(--apply) 직접 등록합니다. */
+async function setup(args) {
+  const { values } = parseArgs({ args, allowPositionals: false, options: { apply: { type: 'boolean' } } });
+  const bin = join(PACKAGE_ROOT, 'bin', 'safescan.js').replaceAll('\\', '/');
+  const claudeAdd = ['mcp', 'add', '--scope', 'user', 'safescan', '--', 'node', bin, 'mcp'];
+  const quote = (a) => (/[\s"]/.test(a) ? JSON.stringify(a) : a);
+
+  console.log(`\n${banner()}  Claude 에 연결하기\n`);
+  console.log(`${c.bold('1. Claude Code 에 등록')} ${c.dim('(한 번만, 모든 프로젝트에서 사용)')}`);
+  console.log(`   claude ${claudeAdd.map(quote).join(' ')}`);
+  console.log(`\n${c.bold('2. 사용')}`);
+  console.log(`   ${c.sky('자동 (터미널 CLI)')}  프로젝트 폴더에서  claude --dangerously-load-development-channels server:safescan`);
+  console.log(c.dim('                      화면 버튼을 누르면 이 Claude 세션이 바로 작업합니다 (채널 · 연구 미리보기)'));
+  console.log(`   ${c.sky('채팅 (데스크톱 앱)')}  평소처럼 세션을 열고, 화면에서 버튼을 누른 뒤 "SafeScan 요청 처리해 줘" 라고 입력`);
+  console.log(`   ${c.sky('화면 열기')}          Claude 에게 "SafeScan 열어 줘"`);
+  console.log(`\n${c.bold('Codex')}  codex mcp add safescan -- node ${quote(bin)} mcp`);
+  console.log(c.dim('\n채널이 연결되지 않으면 MCP_PROTOCOL_NEGOTIATION=legacy 로 Claude Code 를 실행해 보세요.'));
+
+  if (!values.apply) return 0;
+  try {
+    const existing = await runCommand('claude', ['mcp', 'get', 'safescan'], { timeoutMs: 30_000 }).catch(() => null);
+    if (existing?.code === 0) {
+      console.log(`\n${c.ok('✓')} 이미 등록되어 있습니다 (claude mcp get safescan)`);
+      return 0;
+    }
+    const added = await runCommand('claude', claudeAdd, { timeoutMs: 30_000 });
+    if (added.code !== 0) fail(`claude mcp add 실패: ${(added.stderr || added.stdout).trim()}`);
+    console.log(`\n${c.ok('✓')} Claude Code 에 safescan 을 등록했습니다. 새 Claude 세션부터 적용됩니다.`);
+    return 0;
+  } catch (err) {
+    if (err instanceof CommandNotFoundError) fail('claude 명령을 찾을 수 없습니다. Claude Code CLI 를 설치하거나 위 명령을 직접 실행하세요');
+    throw err;
   }
 }
 
@@ -123,6 +225,27 @@ async function scan(args) {
   if (values.json) console.log(JSON.stringify(result, null, 2));
   else printSummary(result);
   return result.modules.some((m) => m.status === 'failed' || m.status === 'timeout') ? 1 : 0;
+}
+
+async function issues(args) {
+  const { values, positionals } = parseArgs({
+    args,
+    allowPositionals: true,
+    options: { all: { type: 'boolean' }, show: { type: 'string' }, json: { type: 'boolean' } },
+  });
+  const store = await loadIssues(join(resolve(positionals[0] ?? '.'), '.safescan'));
+
+  if (values.show) {
+    const issue = findIssue(store, values.show) ?? fail(`이슈를 찾을 수 없습니다: ${values.show}`);
+    if (values.json) console.log(JSON.stringify(issue, null, 2));
+    else printIssue(issue);
+    return 0;
+  }
+  const list = values.all ? store.issues : store.issues.filter((i) => i.status !== 'resolved');
+  if (values.json) console.log(JSON.stringify(list, null, 2));
+  else if (!store.issues.length) console.log('아직 이슈가 없습니다. safescan scan 으로 검사하면 결과가 이슈로 쌓입니다.');
+  else printIssueBoard(store.issues, { showResolved: values.all });
+  return 0;
 }
 
 async function create(args) {

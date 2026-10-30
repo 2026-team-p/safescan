@@ -167,7 +167,7 @@ export function appliesTo(manifest, index) {
  * @param {(relPath: string) => boolean} [isIgnored]
  * @returns {import('../sdk/types.js').ProjectApi}
  */
-export function createProjectApi(root, profile, isIgnored) {
+export function createProjectApi(root, profile, isIgnored = () => false) {
   const resolveInside = (relPath) => {
     const abs = resolve(root, relPath);
     const rel = relative(root, abs);
@@ -188,6 +188,10 @@ export function createProjectApi(root, profile, isIgnored) {
     },
     readText: (relPath) => readFile(resolveInside(relPath), 'utf8'),
     findFiles: (query) => findFiles(root, query, isIgnored),
+    isIgnored(relPath) {
+      const rel = relPath.replaceAll('\\', '/').replace(/^\.\//, '');
+      return rel.split('/').slice(0, -1).some((dir) => IGNORE_DIRS.has(dir)) || isIgnored(rel);
+    },
   });
 }
 

@@ -1,0 +1,10 @@
+{
+  "description": "leaky-shop-api 더미 프로젝트에 심은 비밀 값 4건. payments.js 의 키는 흔한 단어(shop, api)가 들어 있어 gitleaks generic 규칙이 걸러 내는 '알려진 미탐'입니다. src/env.js 는 환경 변수를 쓰는 안전한 코드라 검출되면 오탐입니다.",
+  "allowExtra": false,
+  "findings": [
+    { "ruleId": "generic-api-key", "file": "src/config.js", "line": 4, "severity": "high" },
+    { "ruleId": "generic-api-key", "file": "src/config.js", "line": 8, "severity": "high" },
+    { "ruleId": "jwt", "file": "scripts/seed-admin.js", "line": 2, "severity": "high" },
+    { "ruleId": "generic-api-key", "file": "src/payments.js", "line": 2, "severity": "high" }
+  ]
+}
