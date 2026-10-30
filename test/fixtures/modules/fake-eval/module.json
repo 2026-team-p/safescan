@@ -1,0 +1,5 @@
+{
+  "id": "fake-eval", "name": "가짜 eval 검사", "version": "0.0.1", "description": "테스트용: eval( 호출을 찾습니다",
+  "category": "sast", "tool": { "name": "node", "homepage": "https://nodejs.org" },
+  "requires": [{ "bin": "node", "install": "Node.js" }]
+}

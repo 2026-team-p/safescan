@@ -99,12 +99,52 @@ export function syncIssues(store, run) {
   return summary;
 }
 
+const locks = new Map();
+
+/**
+ * 이슈 저장소를 읽어 fn 으로 고치고 저장합니다. 같은 저장소에 대한 호출은 차례대로 실행되어
+ * 검사 결과 반영과 UI 의 상태 변경이 서로를 덮어쓰지 않습니다. fn 이 던지면 저장하지 않습니다.
+ * @template T
+ * @param {string} storeDir
+ * @param {(store: { issues: Issue[], updatedAt: string|null }) => T | Promise<T>} fn
+ * @returns {Promise<T>}
+ */
+export function withIssues(storeDir, fn) {
+  const run = (locks.get(storeDir) ?? Promise.resolve()).then(async () => {
+    const store = await loadIssues(storeDir);
+    const out = await fn(store);
+    await saveIssues(storeDir, store);
+    return out;
+  });
+  locks.set(storeDir, run.catch(() => {}));
+  return run;
+}
+
 /** 실행 결과를 <storeDir>/issues.json 에 반영하고 요약을 돌려줍니다. */
-export async function syncIssueStore(storeDir, run) {
-  const store = await loadIssues(storeDir);
-  const summary = syncIssues(store, run);
-  await saveIssues(storeDir, store);
-  return summary;
+export function syncIssueStore(storeDir, run) {
+  return withIssues(storeDir, (store) => syncIssues(store, run));
+}
+
+export const ISSUE_STATUSES = /** @type {const} */ (['discovered', 'in_progress', 'resolved']);
+const STATUS_LABEL = { discovered: '발견됨', in_progress: '해결 중', resolved: '조치 완료' };
+
+/**
+ * 타임라인에 기록을 남깁니다 (사용자 · AI 의 행동).
+ * @param {Issue} issue
+ * @param {Omit<import('../sdk/types.js').ThreadEntry, 'at'> & { at?: string }} item
+ */
+export function addThreadEntry(issue, { at = new Date().toISOString(), ...rest }) {
+  issue.thread.push({ at, ...rest });
+  issue.updatedAt = at;
+}
+
+/** 칸반 열을 옮깁니다. 바뀌었으면 true */
+export function setIssueStatus(issue, status, actor = /** @type {const} */ ('user')) {
+  if (!ISSUE_STATUSES.includes(status)) throw new Error(`알 수 없는 상태: ${status}`);
+  if (issue.status === status) return false;
+  addThreadEntry(issue, { type: 'status', actor, message: `${STATUS_LABEL[issue.status]} → ${withRo(STATUS_LABEL[status])} 옮겼습니다` });
+  issue.status = status;
+  return true;
 }
 
 /** id 앞부분만으로도 찾습니다. 여러 개가 맞으면 에러 */
@@ -112,6 +152,13 @@ export function findIssue(store, idPrefix) {
   const matches = store.issues.filter((issue) => issue.id.startsWith(idPrefix));
   if (matches.length > 1) throw new Error(`'${idPrefix}' 로 시작하는 이슈가 ${matches.length}개입니다. 더 길게 입력하세요`);
   return matches[0] ?? null;
+}
+
+/** 받침에 따라 '으로' / '로' (받침 ㄹ 은 '로') */
+function withRo(word) {
+  const code = word.charCodeAt(word.length - 1) - 0xac00;
+  const final = code >= 0 && code < 11172 ? code % 28 : 0;
+  return `${word}${final === 0 || final === 8 ? '로' : '으로'}`;
 }
 
 /** @param {NormalizedFinding[]} findings */

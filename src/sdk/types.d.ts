@@ -376,10 +376,18 @@ export interface Issue {
 
 export interface ThreadEntry {
   at: string;
-  type: 'detected' | 'changed' | 'resolved' | 'reopened';
+  type:
+    | 'detected' | 'changed' | 'resolved' | 'reopened'   // 검사 결과 반영 (safescan)
+    | 'status'                                           // 칸반 열 이동
+    | 'patch_requested' | 'patch_proposed'               // AI 수정 요청 · 제안
+    | 'patch_failed'                                     // AI 가 수정안을 만들지 못함
+    | 'patch_accepted' | 'patch_rejected'                // 사용자의 수락 · 거절 · 요청 취소
+    | 'verify_failed';                                   // 수정 후 재검사에서 여전히 발견
   actor: 'safescan' | 'user' | 'ai';
   runId?: string;
   message: string;
+  /** 요청 옵션 · AI 설명 등 기록별 추가 정보 */
+  data?: Record<string, unknown>;
 }
 
 export interface IssueSyncSummary {

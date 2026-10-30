@@ -32,16 +32,16 @@ class ModuleTimeoutError extends Error {
  * @param {(event: import('../sdk/types.js').RunEvent) => void} [p.onEvent]
  * @param {boolean} [p.strict]   true 면 잘못된 Finding 이 하나라도 있으면 모듈 실패 (bench · check 용)
  * @param {string|null} [p.storeDir]  결과 · 이슈 저장 위치. 기본 <projectRoot>/.safescan, null 이면 저장 안 함
+ * @param {string} [p.runId]     미리 정한 실행 ID (UI 가 이벤트를 구독하려고 먼저 받아 갈 때)
  * @returns {Promise<import('../sdk/types.js').RunResult & { savedTo?: string }>}
  */
 export async function runScan({
   projectRoot, modules, options = {}, concurrency = 3, aiProvider = createAiProvider(),
-  onEvent = () => {}, strict = false, storeDir,
+  onEvent = () => {}, strict = false, storeDir, runId = newRunId(),
 }) {
   const root = resolve(projectRoot);
   if (!(await stat(root).catch(() => null))?.isDirectory()) throw new Error(`폴더가 아닙니다: ${root}`);
 
-  const runId = newRunId();
   const events = [];
   const emit = (event) => {
     const full = /** @type {import('../sdk/types.js').RunEvent} */ ({ runId, at: new Date().toISOString(), ...event });
@@ -261,7 +261,7 @@ async function mapPool(items, limit, fn) {
   return results;
 }
 
-function newRunId() {
+export function newRunId() {
   const iso = new Date().toISOString(); // 2026-10-31T02:46:00.000Z
   return `${iso.slice(0, 10).replaceAll('-', '')}-${iso.slice(11, 19).replaceAll(':', '')}-${randomBytes(2).toString('hex')}`;
 }

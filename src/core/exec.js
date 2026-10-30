@@ -34,7 +34,7 @@ export function runCommand(cmd, args = [], { cwd, env, timeoutMs, input, signal,
     const started = performance.now();
     const child = spawn(cmd, args, {
       cwd,
-      env: { ...process.env, ...env },
+      env: childEnv(env),
       stdio: ['pipe', 'pipe', 'pipe'],
       windowsHide: true,
     });
@@ -91,6 +91,21 @@ export function runCommand(cmd, args = [], { cwd, env, timeoutMs, input, signal,
     child.stdin.on('error', () => {}); // 자식이 stdin 을 읽기 전에 끝나는 경우
     child.stdin.end(input ?? '');
   });
+}
+
+/**
+ * 자식 프로세스 환경. Windows 에서 PATH 항목에 따옴표가 섞여 있으면(예: C:\Program Files\dotnet")
+ * cmd.exe 가 그 뒤 항목을 찾지 못해 npm 전역 설치 도구(.cmd)를 실행하지 못하므로, 자식에게 줄 PATH 에서만 따옴표를 뺍니다.
+ */
+export function childEnv(extra = {}) {
+  const env = { ...process.env, ...extra };
+  if (process.platform !== 'win32') return env;
+  for (const key of Object.keys(env)) {
+    if (key.toUpperCase() === 'PATH' && env[key]) {
+      env[key] = env[key].split(';').map((p) => p.replaceAll('"', '').trim()).filter(Boolean).join(';');
+    }
+  }
+  return env;
 }
 
 // Windows 에서 .cmd 는 cmd.exe 를 거쳐 실행되므로 자식 프로세스까지 함께 끝내야 합니다.

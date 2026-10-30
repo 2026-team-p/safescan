@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { meterAi, parseJsonReply } from '../src/core/ai.js';
+import { childEnv } from '../src/core/exec.js';
 import { scoreFindings } from '../src/core/bench.js';
 import { appliesTo, compileIgnore, createProjectApi, scanProject } from '../src/core/project.js';
 import { normalizeFinding, resolveOptions, validateManifest } from '../src/core/schema.js';
@@ -104,6 +105,14 @@ test('ctx.project 는 프로젝트 밖 경로를 막는다', () => {
   const api = createProjectApi(process.cwd(), /** @type {any} */ ({}));
   assert.throws(() => api.resolve('../outside.txt'), /프로젝트 밖/);
   assert.ok(api.resolve('src/a.js'));
+});
+
+test('childEnv: Windows 에서는 PATH 항목의 따옴표를 빼 cmd.exe 가 뒤쪽 항목도 찾게 한다', () => {
+  const env = childEnv({ PATH: 'C:\\a;C:\\Program Files\\dotnet";;C:\\npm', EXTRA: '1' });
+  const pathKey = Object.keys(env).find((k) => k.toUpperCase() === 'PATH');
+  if (process.platform === 'win32') assert.equal(env[pathKey], 'C:\\a;C:\\Program Files\\dotnet;C:\\npm');
+  else assert.equal(env.PATH, 'C:\\a;C:\\Program Files\\dotnet";;C:\\npm');
+  assert.equal(env.EXTRA, '1');
 });
 
 test('parseJsonReply: 코드 블록 · 앞뒤 설명이 있어도 읽는다', () => {
