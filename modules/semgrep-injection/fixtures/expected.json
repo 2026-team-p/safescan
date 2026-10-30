@@ -1,0 +1,15 @@
+{
+  "description": "JS · Python · Java 예제에 SQL 인젝션 · 명령 주입 · XSS · eval · SSTI 를 심어 두었고, 같은 파일에 안전한 코드(매개변수 바인딩, 이스케이프, 고정 명령)도 함께 넣어 오탐을 확인합니다.",
+  "allowExtra": false,
+  "findings": [
+    { "ruleId": "safescan.js.sql-injection", "file": "src/app.js", "line": 8, "severity": "critical" },
+    { "ruleId": "safescan.js.command-injection", "file": "src/app.js", "line": 12, "severity": "critical" },
+    { "ruleId": "safescan.js.xss-request-to-response", "file": "src/app.js", "line": 16, "severity": "high" },
+    { "ruleId": "safescan.js.eval-injection", "file": "src/app.js", "line": 20, "severity": "critical" },
+    { "ruleId": "safescan.js.dom-xss-innerhtml", "file": "src/views.js", "line": 3, "severity": "medium" },
+    { "ruleId": "safescan.python.sql-injection", "file": "src/app.py", "line": 11, "severity": "critical" },
+    { "ruleId": "safescan.python.command-injection", "file": "src/app.py", "line": 16, "severity": "critical" },
+    { "ruleId": "safescan.python.ssti-render-template-string", "file": "src/app.py", "line": 20, "severity": "critical" },
+    { "ruleId": "safescan.java.sql-injection", "file": "src/Dao.java", "line": 7, "severity": "critical" }
+  ]
+}

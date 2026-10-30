@@ -1,0 +1,25 @@
+{
+  "id": "semgrep-injection",
+  "name": "인젝션 취약점 정적 분석 (Semgrep)",
+  "version": "0.1.0",
+  "description": "JavaScript · TypeScript · Python · Java 소스에서 SQL 인젝션, OS 명령 주입, XSS, eval 코드 주입, 서버 측 템플릿 주입 패턴을 Semgrep 규칙으로 찾습니다.",
+  "category": "sast",
+  "owasp": ["A05:2025"],
+  "cwe": ["CWE-89", "CWE-78", "CWE-79", "CWE-95", "CWE-1336"],
+  "status": "experimental",
+  "tool": {
+    "name": "Semgrep CE",
+    "homepage": "https://semgrep.dev/docs/",
+    "license": "LGPL-2.1"
+  },
+  "requires": [
+    {
+      "bin": "semgrep",
+      "versionArgs": ["--version"],
+      "install": "pip install semgrep (Windows 에서 안 되면 WSL 또는 Docker 를 사용하세요)"
+    }
+  ],
+  "appliesWhen": { "files": ["*.js", "*.jsx", "*.mjs", "*.cjs", "*.ts", "*.tsx", "*.py", "*.java"] },
+  "ai": "none",
+  "timeoutSec": 300
+}

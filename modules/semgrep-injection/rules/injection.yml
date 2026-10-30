@@ -1,0 +1,172 @@
+rules:
+  # ───────── JavaScript / TypeScript ─────────
+  - id: safescan.js.sql-injection
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: 사용자 입력이 문자열로 이어 붙여져 SQL 쿼리에 들어갑니다. 매개변수 바인딩(?, $1)을 사용하세요.
+    metadata:
+      cwe: ["CWE-89"]
+      owasp: ["A05:2025"]
+      confidence: HIGH
+    patterns:
+      - pattern-either:
+          - pattern: $DB.query(`...${$X}...`, ...)
+          - pattern: $DB.query($A + $B, ...)
+          - pattern: $DB.execute(`...${$X}...`, ...)
+          - pattern: $DB.execute($A + $B, ...)
+          - pattern: $DB.raw(`...${$X}...`, ...)
+      - pattern-not: $DB.query("...", ...)
+
+  - id: safescan.js.command-injection
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: 외부 입력이 셸 명령 문자열에 들어갑니다. execFile 처럼 인자 배열을 받는 API 를 쓰세요.
+    metadata:
+      cwe: ["CWE-78"]
+      owasp: ["A05:2025"]
+      confidence: HIGH
+    pattern-either:
+      - pattern: $CP.exec(`...${$X}...`, ...)
+      - pattern: $CP.exec($A + $B, ...)
+      - pattern: $CP.execSync(`...${$X}...`, ...)
+      - pattern: $CP.execSync($A + $B, ...)
+      - pattern: exec(`...${$X}...`, ...)
+      - pattern: exec($A + $B, ...)
+      - pattern: execSync(`...${$X}...`, ...)
+      - pattern: execSync($A + $B, ...)
+
+  - id: safescan.js.xss-request-to-response
+    languages: [javascript, typescript]
+    severity: ERROR
+    mode: taint
+    message: 요청 값이 이스케이프 없이 HTML 응답이나 DOM 에 들어갑니다 (XSS). 출력 전에 이스케이프하거나 textContent 를 쓰세요.
+    metadata:
+      cwe: ["CWE-79"]
+      owasp: ["A05:2025"]
+      confidence: MEDIUM
+    pattern-sources:
+      - pattern: $REQ.query
+      - pattern: $REQ.body
+      - pattern: $REQ.params
+    pattern-sinks:
+      - pattern: $RES.send(...)
+      - pattern: $RES.write(...)
+      - pattern: $EL.innerHTML = $X
+    pattern-sanitizers:
+      - pattern: escapeHtml(...)
+      - pattern: encodeURIComponent(...)
+
+  - id: safescan.js.dom-xss-innerhtml
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: innerHTML 에 문자열 연결이나 템플릿으로 만든 값을 넣고 있습니다. textContent 를 쓰거나 값을 이스케이프하세요.
+    metadata:
+      cwe: ["CWE-79"]
+      owasp: ["A05:2025"]
+      confidence: MEDIUM
+    pattern-either:
+      - pattern: $EL.innerHTML = `...${$X}...`
+      - pattern: $EL.innerHTML = $A + $B
+      - pattern: $EL.outerHTML = `...${$X}...`
+      - pattern: document.write($A + $B)
+
+  - id: safescan.js.eval-injection
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: eval / new Function 에 동적 값을 넘기면 임의 코드가 실행됩니다.
+    metadata:
+      cwe: ["CWE-95"]
+      owasp: ["A05:2025"]
+      confidence: HIGH
+    patterns:
+      - pattern-either:
+          - pattern: eval($X)
+          - pattern: new Function(..., $X)
+      - pattern-not: eval("...")
+      - pattern-not: new Function(..., "...")
+
+  # ───────── Python ─────────
+  - id: safescan.python.sql-injection
+    languages: [python]
+    severity: ERROR
+    message: 사용자 입력이 문자열 포맷으로 SQL 쿼리에 들어갑니다. 매개변수 바인딩(execute(sql, params))을 사용하세요.
+    metadata:
+      cwe: ["CWE-89"]
+      owasp: ["A05:2025"]
+      confidence: HIGH
+    pattern-either:
+      - pattern: $C.execute(f"...{$X}...", ...)
+      - pattern: $C.execute("..." % $X, ...)
+      - pattern: $C.execute("...".format(...), ...)
+      - pattern: $C.execute($A + $B, ...)
+
+  - id: safescan.python.command-injection
+    languages: [python]
+    severity: ERROR
+    message: 외부 입력이 셸 명령에 들어갑니다. subprocess.run([...]) 처럼 인자 리스트를 쓰고 shell=True 를 피하세요.
+    metadata:
+      cwe: ["CWE-78"]
+      owasp: ["A05:2025"]
+      confidence: HIGH
+    pattern-either:
+      - pattern: os.system(f"...{$X}...")
+      - pattern: os.system("..." + $X)
+      - pattern: os.system("..." % $X)
+      - pattern: subprocess.$F(f"...{$X}...", ..., shell=True, ...)
+      - pattern: subprocess.$F("..." + $X, ..., shell=True, ...)
+      - pattern: subprocess.$F("...".format(...), ..., shell=True, ...)
+
+  - id: safescan.python.eval-injection
+    languages: [python]
+    severity: ERROR
+    message: eval / exec 에 동적 값을 넘기면 임의 코드가 실행됩니다.
+    metadata:
+      cwe: ["CWE-95"]
+      owasp: ["A05:2025"]
+      confidence: HIGH
+    patterns:
+      - pattern-either:
+          - pattern: eval($X)
+          - pattern: exec($X)
+      - pattern-not: eval("...")
+      - pattern-not: exec("...")
+
+  - id: safescan.python.ssti-render-template-string
+    languages: [python]
+    severity: ERROR
+    message: 외부 입력으로 만든 문자열을 템플릿으로 렌더링하면 서버 측 템플릿 주입(SSTI)이 됩니다.
+    metadata:
+      cwe: ["CWE-1336"]
+      owasp: ["A05:2025"]
+      confidence: MEDIUM
+    pattern-either:
+      - pattern: render_template_string(f"...{$X}...", ...)
+      - pattern: render_template_string($A + $B, ...)
+      - pattern: render_template_string("...".format(...), ...)
+
+  # ───────── Java ─────────
+  - id: safescan.java.sql-injection
+    languages: [java]
+    severity: ERROR
+    message: 문자열 연결로 만든 SQL 을 실행합니다. PreparedStatement 와 매개변수 바인딩을 사용하세요.
+    metadata:
+      cwe: ["CWE-89"]
+      owasp: ["A05:2025"]
+      confidence: HIGH
+    pattern-either:
+      - pattern: $S.executeQuery($A + $B)
+      - pattern: $S.executeUpdate($A + $B)
+      - pattern: $S.execute($A + $B)
+      - pattern: $C.createStatement().executeQuery($A + $B)
+
+  - id: safescan.java.command-injection
+    languages: [java]
+    severity: ERROR
+    message: 외부 입력이 OS 명령 문자열에 들어갑니다. 인자 배열을 받는 ProcessBuilder 를 쓰고 입력을 검증하세요.
+    metadata:
+      cwe: ["CWE-78"]
+      owasp: ["A05:2025"]
+      confidence: HIGH
+    pattern-either:
+      - pattern: Runtime.getRuntime().exec($A + $B)
+      - pattern: (Runtime $R).exec($A + $B)
