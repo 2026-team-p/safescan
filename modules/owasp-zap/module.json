@@ -1,0 +1,29 @@
+{
+  "id": "owasp-zap",
+  "name": "OWASP ZAP 웹사이트 동적 보안 검사",
+  "version": "0.1.0",
+  "description": "사용자가 명시적으로 지정한 로컬 웹사이트에서 ZAP Baseline 또는 승인된 Full Scan을 수행하고 보안 설정 누락 및 웹 취약점을 탐지합니다.",
+  "category": "dast",
+  "owasp": ["A02:2025", "A05:2025"],
+  "status": "experimental",
+  "tool": {
+    "name": "OWASP ZAP",
+    "homepage": "https://www.zaproxy.org/",
+    "license": "Apache-2.0"
+  },
+  "requires": [
+    {
+      "bin": "docker",
+      "versionArgs": ["--version"],
+      "install": "Docker Desktop을 설치하고 Docker 엔진을 실행하세요."
+    }
+  ],
+  "ai": "none",
+  "options": {
+    "url": { "type": "string", "label": "검사 대상 URL", "default": "", "description": "본인의 로컬 테스트 사이트 (예: http://localhost:5000)" },
+    "mode": { "type": "enum", "label": "검사 모드", "choices": ["baseline", "full"], "default": "baseline" },
+    "confirmActive": { "type": "boolean", "label": "능동 검사 승인", "default": false },
+    "spiderMinutes": { "type": "number", "label": "탐색 시간(분)", "default": 2 }
+  },
+  "timeoutSec": 1800
+}
