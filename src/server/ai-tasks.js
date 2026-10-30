@@ -2,6 +2,10 @@
 // 모든 호출은 meterAi 로 계측되어 비용 · 토큰이 UI 텔레메트리에 쌓입니다.
 import { meterAi } from '../core/ai.js';
 
+/** 화면 언어 → AI 에게 알려 줄 답변 언어 */
+export const LANG_NAMES = { ko: '한국어', en: 'English', ja: '日本語', es: 'Español', zh: '简体中文' };
+export const langName = (lang) => LANG_NAMES[lang] ?? LANG_NAMES.ko;
+
 // ───────────────────────────── 모듈 추천 ─────────────────────────────
 
 /**
@@ -11,8 +15,9 @@ import { meterAi } from '../core/ai.js';
  *                 applies: { applies: boolean, matched: string[] } }>} p.modules
  * @param {import('../core/ai.js').AiProvider} p.aiProvider
  * @param {(record: import('../sdk/types.js').AiCallRecord) => void} p.onAiCall
+ * @param {string} [p.lang]  답변 언어 (화면 언어)
  */
-export async function recommendModules({ profile, modules, aiProvider, onAiCall }) {
+export async function recommendModules({ profile, modules, aiProvider, onAiCall, lang = 'ko' }) {
   const rules = recommendByRules(profile, modules);
   if (!aiProvider.available) return rules;
 
@@ -35,8 +40,8 @@ export async function recommendModules({ profile, modules, aiProvider, onAiCall 
         '[실행 가능한 모듈]',
         ...ready.map((m) => `- ${m.id}: ${m.name} — ${m.description} (분류 ${m.category}, 적용 조건 ${m.applies.applies ? '충족' : '불충족'})`),
         '',
-        '이 프로젝트에 의미 있는 모듈만 고르고, 한국어 한두 문장으로 근거를 써라.',
-        '근거는 "이 프로젝트는 ~로 판단됩니다. ~를 켭니다." 형식으로 쓴다.',
+        `이 프로젝트에 의미 있는 모듈만 고르고, ${langName(lang)} 한두 문장으로 근거를 써라.`,
+        '근거에는 프로젝트를 어떻게 판단했는지와 어떤 모듈을 왜 켜는지를 담는다.',
         '형식: {"selected": ["모듈 id"], "reasoning": "근거"}',
       ].join('\n'),
     });
@@ -61,7 +66,17 @@ function recommendByRules(profile, modules) {
     chosen.length ? `${reasons.join(', ')} 모듈을 켭니다.` : '켤 수 있는 모듈이 없습니다.',
   ];
   if (missing.length) sentences.push(`도구가 설치되어 있지 않아 제외한 모듈: ${missing.map((m) => m.name).join(', ')}.`);
-  return { source: 'rules', selected: chosen.map((m) => m.id), reasoning: sentences.join(' ') };
+  return {
+    source: 'rules',
+    selected: chosen.map((m) => m.id),
+    reasoning: sentences.join(' '),
+    // 화면이 언어별로 같은 근거를 다시 쓸 수 있게 판단 재료를 함께 보냅니다.
+    basis: {
+      stack,
+      chosen: chosen.map((m) => ({ id: m.id, matched: m.applies.matched })),
+      missing: missing.map((m) => m.id),
+    },
+  };
 }
 
 // ───────────────────────────── 수정안 (patch) ─────────────────────────────
@@ -165,8 +180,9 @@ export function optionInstructions(options) {
  * @param {string[]} p.options       PATCH_OPTIONS 키
  * @param {import('../core/ai.js').AiProvider} p.aiProvider
  * @param {(record: import('../sdk/types.js').AiCallRecord) => void} p.onAiCall
+ * @param {string} [p.lang]  설명 언어 (화면 언어)
  */
-export async function proposePatch({ issue, prepared, options, aiProvider, onAiCall }) {
+export async function proposePatch({ issue, prepared, options, aiProvider, onAiCall, lang = 'ko' }) {
   const { file, text: masked, masks } = prepared;
   const finding = issue.findings[0];
 
@@ -194,7 +210,7 @@ export async function proposePatch({ issue, prepared, options, aiProvider, onAiC
       masked,
       '```',
       '',
-      '형식: {"explanation": "무엇을 왜 바꿨는지 한국어 2~3문장", "content": "수정된 파일 전체"}',
+      `형식: {"explanation": "무엇을 왜 바꿨는지 ${langName(lang)} 2~3문장", "content": "수정된 파일 전체"}`,
     ].filter((line) => line !== '').join('\n'),
   });
 

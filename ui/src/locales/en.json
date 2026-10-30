@@ -1,0 +1,303 @@
+{
+  "lang": {
+    "label": "Language"
+  },
+  "theme": {
+    "label": "Appearance",
+    "system": "System",
+    "light": "Light",
+    "dark": "Dark"
+  },
+  "tab": {
+    "scan": "Scan",
+    "issues": "Issues"
+  },
+  "assistant": {
+    "claude": "Claude connected",
+    "claudeAuto": "Claude connected · auto",
+    "api": "API · {{model}}",
+    "off": "AI off",
+    "titleClaude": "The {{client}} session handles AI work",
+    "titleClaudeAuto": "The {{client}} session handles AI work (automatic delivery confirmed)",
+    "titleApi": "AI work runs with ANTHROPIC_API_KEY",
+    "titleOff": "Connect Claude with safescan setup",
+    "waiting": "{{count}} waiting for Claude",
+    "waitingTitle": "{{count}} job(s) haven't been picked up by Claude yet. Type \"{{request}}\" in the Claude chat"
+  },
+  "telemetry": {
+    "aria": "Live resources",
+    "cost": "AI cost",
+    "time": "Elapsed",
+    "confidence": "Confidence",
+    "subscription": "Plan",
+    "subscriptionTitle": "Work done inside the Claude session counts against your plan, so its cost can't be measured here"
+  },
+  "onboarding": {
+    "title": "Analyzing package.json · pom.xml in this directory…",
+    "sub": "Detecting languages, frameworks and package managers, and looking for installed security tools",
+    "errorTitle": "Couldn't reach the server",
+    "retry": "Try again",
+    "tokenError": "The access token is missing or has changed. Reopen the address shown in your terminal, or ask Claude to \"open SafeScan\"."
+  },
+  "setup": {
+    "eyebrow": "Scan setup",
+    "title": "Choose the checks for this project"
+  },
+  "stack": {
+    "languages": "Languages",
+    "frameworks": "Frameworks",
+    "packageManagers": "Package managers",
+    "markers": "Key files",
+    "none": "Not detected"
+  },
+  "wand": {
+    "button": "Auto-configure checks for my project",
+    "busy": "Looking at your project…"
+  },
+  "advice": {
+    "claude": "Recommended by Claude · {{time}}",
+    "ai": "Recommended by AI · {{cost}}",
+    "rules": "Rule-based recommendation",
+    "rulesHint": "Connect Claude (safescan setup) or set ANTHROPIC_API_KEY to let AI read your project and choose.",
+    "failed": "Couldn't get a recommendation: {{error}}"
+  },
+  "reason": {
+    "project": "This looks like a {{stack}} project.",
+    "projectUnknown": "The project setup couldn't be determined.",
+    "enable": "Turning on: {{modules}}.",
+    "none": "No module can be turned on.",
+    "missing": "Skipped because the tool isn't installed: {{modules}}.",
+    "matched": "found {{file}}",
+    "always": "applies to every project"
+  },
+  "modules": {
+    "title": "Security modules",
+    "count": "{{selected}} of {{total}} selected",
+    "search": "Search by name, tool or OWASP",
+    "empty": "No modules match",
+    "filter": {
+      "all": "All",
+      "applies": "Fits this project",
+      "ready": "Ready to run",
+      "selected": "Selected"
+    }
+  },
+  "module": {
+    "applies": "Fits this project",
+    "notApplies": "No matching files",
+    "usesAi": "Uses AI",
+    "missingTool": "{{bin}} not installed",
+    "manifestError": "module.json error",
+    "aiRequired": "Needs an AI connection",
+    "install": "Install: {{hint}}",
+    "toggle": "Turn on {{name}}",
+    "criteria": "Verification criteria",
+    "hideCriteria": "Hide criteria"
+  },
+  "criteria": {
+    "confidence": "Confidence bands",
+    "atLeast": "{{value}} or higher",
+    "accuracy": "Accuracy targets",
+    "precision": "Precision",
+    "recall": "Recall",
+    "target": "target {{value}}",
+    "actual": "latest {{value}}",
+    "latest": "Latest bench {{date}} · v{{version}}",
+    "pass": "Pass",
+    "fail": "Below target",
+    "notMeasured": "Not measured",
+    "noBench": "No bench record yet (safescan bench {{id}})",
+    "benchSkipped": "The latest bench didn't run ({{status}})",
+    "none": "This module doesn't define verification criteria (criteria in module.json)"
+  },
+  "fab": {
+    "start": "Scan with {{count}} modules",
+    "empty": "Choose modules",
+    "start_one": "Scan with {{count}} module"
+  },
+  "job": {
+    "sent": "Sent to Claude (#{{id}})",
+    "claudeRecommend": "Claude is choosing modules…",
+    "claudePatch": "Claude is writing a patch…",
+    "aiRecommend": "AI is choosing modules…",
+    "aiPatch": "AI is writing a patch…",
+    "seconds": "{{count}}s",
+    "cancel": "Cancel",
+    "hintTitle": "If it doesn't start on its own, type this in the Claude chat",
+    "request": "Process SafeScan requests",
+    "copy": "Copy",
+    "copied": "Copied",
+    "hintCli": "Start Claude with {{cmd}} in a terminal and buttons are delivered instantly."
+  },
+  "run": {
+    "eyebrowDone": "Scan complete",
+    "eyebrowRunning": "Scanning",
+    "titleDone": "The scan is done",
+    "titleRunning": "Scanning with {{count}} modules",
+    "titlePreparing": "Preparing the scan",
+    "newIssues": "New issues",
+    "resolved": "Resolved",
+    "open": "Open issues",
+    "newScan": "New scan",
+    "showIssues": "View issues →",
+    "findings": "{{count}} found",
+    "clean": "No problems",
+    "confidence": "Confidence {{value}}%",
+    "details": "Details",
+    "titleRunning_one": "Scanning with {{count}} module"
+  },
+  "status": {
+    "pending": "Waiting",
+    "running": "Running",
+    "ok": "Done",
+    "skipped": "Skipped",
+    "failed": "Failed",
+    "timeout": "Timed out"
+  },
+  "stage": {
+    "preprocess": "Prepare",
+    "tool": "Tool",
+    "postprocess": "Normalize",
+    "verify": "Verify"
+  },
+  "detail": {
+    "close": "Close",
+    "stages": "Stages",
+    "checks": "Self-checks",
+    "noChecks": "This module has no self-checks",
+    "notes": "Notes",
+    "metrics": "Metrics",
+    "duration": "Duration",
+    "aiCalls": "AI calls",
+    "tokens": "Tokens",
+    "cost": "Cost",
+    "confidence": "Confidence",
+    "tool": "Tool",
+    "commands": "Commands run",
+    "findings": "Findings",
+    "noFindings": "No problems found",
+    "logs": "Logs from this module",
+    "reason": "Reason",
+    "waitingResult": "Details appear here when the scan finishes"
+  },
+  "console": {
+    "title": "Transparency console",
+    "lines": "{{count}} lines",
+    "follow": "Auto-scroll",
+    "waiting": "Waiting for logs…",
+    "ai": "AI {{model}} · {{tokens}} tok · {{cost}}",
+    "lines_one": "{{count}} line"
+  },
+  "severity": {
+    "critical": "Critical",
+    "high": "High",
+    "medium": "Medium",
+    "low": "Low",
+    "criticalHint": "A flaw that could get the server breached right now",
+    "highHint": "Possible data leak",
+    "mediumHint": "Missing recommended security setting",
+    "lowHint": "Code smell · informational"
+  },
+  "column": {
+    "discovered": "Discovered",
+    "in_progress": "In progress",
+    "resolved": "Resolved"
+  },
+  "category": {
+    "sast": "Code analysis",
+    "dast": "Dynamic analysis",
+    "dependency": "Dependencies",
+    "secrets": "Secrets",
+    "config": "Configuration",
+    "iac": "Infrastructure code",
+    "container": "Containers",
+    "other": "Other"
+  },
+  "board": {
+    "emptyTitle": "No issues yet",
+    "emptyBody": "Problems found by scans show up here as cards.",
+    "goScan": "Go to scan",
+    "dropHint": "Drag cards here",
+    "summary": "{{count}} open",
+    "rescan": "Rescan",
+    "rescanTitle": "Rescan the modules with open issues ({{modules}})",
+    "found": "Found {{date}}",
+    "resolvedAt": "Resolved {{date}}",
+    "items": "{{count}} items",
+    "items_one": "{{count}} item"
+  },
+  "issue": {
+    "depTitle": "{{name}}@{{version}} · {{count}} advisories",
+    "depTitle_one": "{{name}}@{{version}} · {{count}} advisory"
+  },
+  "panel": {
+    "aria": "Issue details",
+    "status": "Status",
+    "close": "Close",
+    "found": "Found {{date}}",
+    "lastFound": "Last seen",
+    "findings": "{{count}} findings",
+    "remedyClaude": "Fix with Claude",
+    "remedyAi": "Fix with AI",
+    "requestClaude": "Ask Claude for a patch",
+    "requestAi": "Ask AI for a patch",
+    "retry": "Ask again with other options",
+    "blockedNoAi": "No AI is connected. Connect Claude with safescan setup or set ANTHROPIC_API_KEY",
+    "blockedDependency": "Fix dependency issues with your package manager (e.g. npm audit fix)",
+    "blockedNoFile": "This issue has no file location",
+    "hintClaude": "The connected Claude session reads {{file}} and writes a patch. The file only changes when you apply it here.",
+    "hintApi": "The contents of {{file}} are sent to the AI ({{model}}).",
+    "hintMasked": " Secret values are masked first.",
+    "failed": "Couldn't get a patch: {{error}}",
+    "timeline": "Timeline",
+    "findings_one": "{{count}} finding"
+  },
+  "patchOption": {
+    "stability": "Stability first",
+    "performance": "Performance first",
+    "keepStructure": "Keep code structure",
+    "comments": "Detailed comments"
+  },
+  "patch": {
+    "claude": "Claude's patch · {{time}}",
+    "ai": "AI's patch",
+    "masked": " · {{count}} secrets masked",
+    "reject": "Reject",
+    "accept": "Apply and rescan (Accept)",
+    "masked_one": " · {{count}} secret masked"
+  },
+  "verify": {
+    "running": "Rescanning the changed code",
+    "ok": "✅ Rescan passed — this problem is gone",
+    "fail": "⚠️ Still found after the rescan. Try again with other options"
+  },
+  "actor": {
+    "safescan": "SafeScan",
+    "user": "You",
+    "ai": "AI",
+    "claude": "Claude"
+  },
+  "thread": {
+    "detected": "The {{module}} module found {{count}}",
+    "changed": "The rescan changed results: {{added}} new, {{removed}} gone ({{count}} now)",
+    "resolved": "No longer found in the rescan, moved to Resolved",
+    "reopened": "A resolved problem was found again ({{count}})",
+    "status": "{{from}} → {{to}}",
+    "patch_requested": "Asked {{who}} for a patch",
+    "patch_failed": "Couldn't write a patch: {{reason}}",
+    "patch_accepted": "Applied the patch to {{file}}. Rescanning",
+    "patch_rejected": "Didn't apply the patch",
+    "patch_cancelled": "Cancelled the patch request",
+    "verify_still_found": "Still found after the fix",
+    "verify_incomplete": "The rescan didn't finish ({{status}})",
+    "claudeSession": "Claude session · {{time}}"
+  },
+  "diff": {
+    "changed": "{{count}} lines changed",
+    "before": "Current code",
+    "after": "Proposed code",
+    "gap": "… {{count}} unchanged lines …",
+    "changed_one": "{{count}} line changed",
+    "gap_one": "… {{count}} unchanged line …"
+  }
+}

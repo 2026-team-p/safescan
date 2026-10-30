@@ -1,20 +1,13 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Spinner } from './ui.jsx';
 
-export const CHAT_REQUEST = 'SafeScan 요청 처리해 줘';
 const OPEN = new Set(['queued', 'working']);
-
 export const isOpenJob = (job) => Boolean(job) && OPEN.has(job.status);
 
-/** 화면 위쪽에 보여 줄 AI 연결 상태 */
-export function assistantLabel(assistant) {
-  if (assistant.mode === 'claude') return assistant.autoDelivery ? 'Claude 연결됨 · 자동' : 'Claude 연결됨';
-  if (assistant.mode === 'api') return `API · ${assistant.model}`;
-  return 'AI 꺼짐';
-}
-
 /** AI 작업을 기다리는 동안: 누가 처리하는지 · 걸린 시간 · 채팅 요청 안내 · 취소 */
-export function JobWaiting({ job, assistant, onCancel, what }) {
+export function JobWaiting({ job, assistant, onCancel }) {
+  const { t } = useTranslation();
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
@@ -22,9 +15,8 @@ export function JobWaiting({ job, assistant, onCancel, what }) {
   }, []);
   const seconds = Math.max(0, Math.round((now - Date.parse(job.createdAt)) / 1000));
   const claude = job.via === 'claude';
-  const text = !claude ? `AI 가 ${what} 만드는 중…`
-    : job.status === 'queued' ? `Claude 에게 보냈습니다 (#${job.id})`
-      : `Claude 가 ${what} 만드는 중…`;
+  const kind = job.kind === 'patch' ? 'Patch' : 'Recommend';
+  const text = !claude ? t(`job.ai${kind}`) : job.status === 'queued' ? t('job.sent', { id: job.id }) : t(`job.claude${kind}`);
   // 채널로 자동 전달된 적이 없으면 금방, 있으면 조금 기다렸다가 채팅 요청 방법을 알려 줍니다.
   const showHint = claude && job.status === 'queued' && seconds >= (assistant.autoDelivery ? 20 : 5);
 
@@ -33,8 +25,8 @@ export function JobWaiting({ job, assistant, onCancel, what }) {
       <div className="job-line">
         <Spinner size={14} />
         <span>{text}</span>
-        <span className="muted">{seconds}초</span>
-        <button type="button" className="btn-link" onClick={onCancel}>취소</button>
+        <span className="muted">{t('job.seconds', { count: seconds })}</span>
+        <button type="button" className="btn-link" onClick={onCancel}>{t('job.cancel')}</button>
       </div>
       {showHint && <ChatHint />}
     </div>
@@ -42,22 +34,26 @@ export function JobWaiting({ job, assistant, onCancel, what }) {
 }
 
 function ChatHint() {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
+  const request = t('job.request');
   async function copy() {
     try {
-      await navigator.clipboard.writeText(CHAT_REQUEST);
+      await navigator.clipboard.writeText(request);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch { /* 복사가 막혀 있으면 직접 입력 */ }
   }
+  const cmd = 'claude --dangerously-load-development-channels server:safescan';
+  const [before, after] = t('job.hintCli', { cmd: '\u0000' }).split('\u0000');
   return (
     <div className="chat-hint">
-      <p>자동으로 시작되지 않으면 Claude 채팅에 이렇게 입력하세요</p>
+      <p>{t('job.hintTitle')}</p>
       <div className="chat-hint-row">
-        <code>{CHAT_REQUEST}</code>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={copy}>{copied ? '복사됨' : '복사'}</button>
+        <code>{request}</code>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={copy}>{copied ? t('job.copied') : t('job.copy')}</button>
       </div>
-      <p className="muted">터미널에서 <code>claude --dangerously-load-development-channels server:safescan</code> 로 시작하면 버튼만으로 바로 전달됩니다.</p>
+      <p className="muted">{before}<code>{cmd}</code>{after}</p>
     </div>
   );
 }

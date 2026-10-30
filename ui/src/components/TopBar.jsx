@@ -1,7 +1,19 @@
-import { baseName, duration, usd } from '../lib/format.js';
-import { assistantLabel } from './AiJob.jsx';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { LANGS } from '../i18n.js';
+import { baseName, duration, percent, usd } from '../lib/format.js';
+import { applyTheme, loadTheme, THEMES } from '../lib/theme.js';
 
-export function TopBar({ state, assistant, tab, onTab, openIssues, telemetry }) {
+const THEME_ICON = { system: '◐', light: '☀', dark: '☾' };
+
+export function TopBar({ state, assistant, waitingJobs, tab, onTab, openIssues, telemetry }) {
+  const { t } = useTranslation();
+  const client = assistant.client?.name ?? 'Claude';
+  const label = assistant.mode === 'claude' ? t(assistant.autoDelivery ? 'assistant.claudeAuto' : 'assistant.claude')
+    : assistant.mode === 'api' ? t('assistant.api', { model: assistant.model }) : t('assistant.off');
+  const title = assistant.mode === 'claude' ? t(assistant.autoDelivery ? 'assistant.titleClaudeAuto' : 'assistant.titleClaude', { client })
+    : assistant.mode === 'api' ? t('assistant.titleApi') : t('assistant.titleOff');
+
   return (
     <header className="topbar">
       <div className="topbar-inner">
@@ -13,25 +25,29 @@ export function TopBar({ state, assistant, tab, onTab, openIssues, telemetry }) 
             <strong>SafeScan</strong>
             <span title={state.projectRoot}>{baseName(state.projectRoot)}</span>
           </div>
-          <span
-            className={`ai-pill ai-pill-${assistant.mode}`}
-            title={assistant.mode === 'claude'
-              ? `${assistant.client?.name ?? 'Claude'} 세션이 AI 작업을 처리합니다${assistant.autoDelivery ? ' (버튼만으로 자동 전달 확인됨)' : ''}`
-              : assistant.mode === 'api' ? 'ANTHROPIC_API_KEY 로 AI 작업을 처리합니다' : 'safescan setup 으로 Claude 에 연결할 수 있습니다'}
-          >
+          <span className={`ai-pill ai-pill-${assistant.mode}`} title={title}>
             <span className="ai-dot" aria-hidden />
-            {assistantLabel(assistant)}
+            {label}
           </span>
+          {waitingJobs > 0 && (
+            <span className="ai-pill ai-pill-waiting" title={t('assistant.waitingTitle', { count: waitingJobs, request: t('job.request') })}>
+              <span className="ai-dot" aria-hidden />
+              {t('assistant.waiting', { count: waitingJobs })}
+            </span>
+          )}
         </div>
 
-        <nav className="tabs" aria-label="화면">
-          <button type="button" className={tab === 'scan' ? 'tab tab-active' : 'tab'} onClick={() => onTab('scan')}>검사</button>
+        <nav className="tabs" aria-label="SafeScan">
+          <button type="button" className={tab === 'scan' ? 'tab tab-active' : 'tab'} onClick={() => onTab('scan')}>{t('tab.scan')}</button>
           <button type="button" className={tab === 'issues' ? 'tab tab-active' : 'tab'} onClick={() => onTab('issues')}>
-            이슈 {openIssues > 0 && <span className="tab-count">{openIssues}</span>}
+            {t('tab.issues')} {openIssues > 0 && <span className="tab-count">{openIssues}</span>}
           </button>
         </nav>
 
-        <Telemetry {...telemetry} claude={assistant.mode === 'claude'} />
+        <div className="topbar-right">
+          <Telemetry {...telemetry} claude={assistant.mode === 'claude'} />
+          <Settings />
+        </div>
       </div>
     </header>
   );
@@ -39,20 +55,50 @@ export function TopBar({ state, assistant, tab, onTab, openIssues, telemetry }) 
 
 /** 검증 단계 지표: AI 비용 · 소요 시간 · 신뢰도. 검사 중에는 실시간으로 바뀝니다. */
 function Telemetry({ aiCost, elapsedMs, confidence, live, claude }) {
+  const { t } = useTranslation();
   return (
-    <dl className={`telemetry ${live ? 'telemetry-live' : ''}`} aria-label="실시간 리소스">
-      <div title={claude ? 'Claude 세션 안에서 처리한 작업은 구독 사용량으로 계산되어 여기서 비용을 셀 수 없습니다' : undefined}>
-        <dt>AI 비용</dt>
-        <dd>{claude && !aiCost ? '구독' : usd(aiCost)}</dd>
+    <dl className={`telemetry ${live ? 'telemetry-live' : ''}`} aria-label={t('telemetry.aria')}>
+      <div title={claude ? t('telemetry.subscriptionTitle') : undefined}>
+        <dt>{t('telemetry.cost')}</dt>
+        <dd>{claude && !aiCost ? t('telemetry.subscription') : usd(aiCost)}</dd>
       </div>
       <div>
-        <dt>소요 시간</dt>
+        <dt>{t('telemetry.time')}</dt>
         <dd>{duration(elapsedMs)}</dd>
       </div>
       <div>
-        <dt>신뢰도</dt>
-        <dd>{confidence == null ? '—' : `${Math.round(confidence * 100)}%`}</dd>
+        <dt>{t('telemetry.confidence')}</dt>
+        <dd>{percent(confidence)}</dd>
       </div>
     </dl>
+  );
+}
+
+function Settings() {
+  const { t, i18n } = useTranslation();
+  const [theme, setTheme] = useState(loadTheme);
+  const next = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
+
+  return (
+    <div className="settings">
+      <label className="lang-select" title={t('lang.label')}>
+        <span aria-hidden>🌐</span>
+        <select value={i18n.language} onChange={(e) => i18n.changeLanguage(e.target.value)} aria-label={t('lang.label')}>
+          {LANGS.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
+        </select>
+      </label>
+      <button
+        type="button"
+        className="icon-btn theme-btn"
+        title={`${t('theme.label')}: ${t(`theme.${theme}`)}`}
+        aria-label={`${t('theme.label')}: ${t(`theme.${theme}`)} → ${t(`theme.${next}`)}`}
+        onClick={() => {
+          applyTheme(next);
+          setTheme(next);
+        }}
+      >
+        {THEME_ICON[theme]}
+      </button>
+    </div>
   );
 }

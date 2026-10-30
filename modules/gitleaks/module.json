@@ -28,5 +28,35 @@
       "default": 5
     }
   },
-  "timeoutSec": 300
+  "timeoutSec": 300,
+  "criteria": {
+    "confidence": [
+      { "min": 0.85, "label": "형식이 정해진 규칙", "description": "JWT · 개인 키 · 클라우드 토큰처럼 모양이 정해진 값" },
+      { "min": 0.7, "label": "엔트로피가 높은 일반 키", "description": "키워드 + 엔트로피 4.5 이상" },
+      { "min": 0.55, "label": "일반 키 (추정)", "description": "키워드 + 엔트로피 4.5 미만, 오탐 가능성 있음" }
+    ],
+    "accuracy": { "precision": 0.9, "recall": 0.7 }
+  },
+  "i18n": {
+    "en": {
+      "name": "Hardcoded secrets",
+      "description": "Finds API keys, passwords, tokens and private keys hardcoded in source and config files. Secret values are never kept in results.",
+      "criteria": ["Fixed-format rule", "High-entropy generic key", "Generic key (heuristic)"]
+    },
+    "ja": {
+      "name": "シークレット露出検査",
+      "description": "ソースや設定ファイルにハードコードされた API キー・パスワード・トークン・秘密鍵を検出します。結果に秘密値の原文は残しません。",
+      "criteria": ["形式が決まった規則", "高エントロピーの一般キー", "一般キー（推定）"]
+    },
+    "es": {
+      "name": "Secretos expuestos",
+      "description": "Detecta claves de API, contraseñas, tokens y claves privadas escritas en el código y en archivos de configuración. Los valores secretos nunca se guardan en los resultados.",
+      "criteria": ["Regla de formato fijo", "Clave genérica de alta entropía", "Clave genérica (heurística)"]
+    },
+    "zh": {
+      "name": "密钥泄露检查",
+      "description": "找出源码和配置文件中硬编码的 API 密钥、密码、令牌和私钥。结果中不保留密钥原文。",
+      "criteria": ["固定格式规则", "高熵通用密钥", "通用密钥（推测）"]
+    }
+  }
 }

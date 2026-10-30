@@ -5,7 +5,7 @@ const MAX_LOGS = 3000;
 const initial = { runId: null, modules: {}, order: [], logs: [], startedAt: null, finishedAt: null, result: null, error: null, closed: false, aiCost: 0 };
 
 function emptyModule(id) {
-  return { id, status: 'pending', stages: {}, stageMs: {}, findings: 0, metrics: null, reason: null };
+  return { id, status: 'pending', stages: {}, stageMs: {}, stageErrors: {}, findings: 0, bySeverity: {}, metrics: null, reason: null };
 }
 
 function reducer(state, e) {
@@ -22,7 +22,11 @@ function reducer(state, e) {
     case 'stage:end':
       return {
         ...state,
-        modules: mod(e.moduleId, (m) => ({ stages: { ...m.stages, [e.stage]: e.status }, stageMs: { ...m.stageMs, [e.stage]: e.durationMs } })),
+        modules: mod(e.moduleId, (m) => ({
+          stages: { ...m.stages, [e.stage]: e.status },
+          stageMs: { ...m.stageMs, [e.stage]: e.durationMs },
+          stageErrors: e.error ? { ...m.stageErrors, [e.stage]: e.error } : m.stageErrors,
+        })),
         logs: e.error ? log({ moduleId: e.moduleId, stage: e.stage, level: e.status === 'skipped' ? 'warn' : 'error', message: e.error }) : state.logs,
       };
     case 'log':
@@ -31,10 +35,16 @@ function reducer(state, e) {
       return {
         ...state,
         aiCost: state.aiCost + e.costUsd,
-        logs: log({ moduleId: e.moduleId, stage: e.stage, level: 'ai', message: `AI ${e.model} · ${e.inputTokens}+${e.outputTokens} tok · $${e.costUsd.toFixed(4)}${e.purpose ? ` · ${e.purpose}` : ''}` }),
+        logs: log({ moduleId: e.moduleId, stage: e.stage, level: 'ai', ai: { model: e.model, tokens: e.inputTokens + e.outputTokens, cost: e.costUsd, purpose: e.purpose } }),
       };
     case 'finding':
-      return { ...state, modules: mod(e.moduleId, (m) => ({ findings: m.findings + 1 })) };
+      return {
+        ...state,
+        modules: mod(e.moduleId, (m) => ({
+          findings: m.findings + 1,
+          bySeverity: { ...m.bySeverity, [e.finding.severity]: (m.bySeverity[e.finding.severity] ?? 0) + 1 },
+        })),
+      };
     case 'module:end':
       return { ...state, modules: mod(e.moduleId, () => ({ status: e.status, metrics: e.metrics, reason: e.reason ?? null })) };
     case 'run:end':

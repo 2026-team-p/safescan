@@ -5,6 +5,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { createAiProvider } from '../core/ai.js';
+import { BENCH_DIR } from '../core/bench.js';
 import { CommandNotFoundError, runCommand } from '../core/exec.js';
 import { addThreadEntry, findIssue, loadIssues, setIssueStatus, withIssues } from '../core/issues.js';
 import { appliesTo, createProjectApi, scanProject } from '../core/project.js';
@@ -77,10 +78,24 @@ export function createApi({ projectRoot, modulesDir, aiProvider = createAiProvid
     return toolCache;
   }
 
+  /** 모듈마다 가장 최근 벤치 결과 (safescan bench 가 SafeScan 폴더의 .safescan/bench 에 쌓은 기록) */
+  async function latestBench(id) {
+    const text = await readFile(join(BENCH_DIR, `${id}.jsonl`), 'utf8').catch(() => '');
+    const last = text.trim().split('\n').filter(Boolean).pop();
+    if (!last) return null;
+    try {
+      const r = JSON.parse(last);
+      return { at: r.at, version: r.moduleVersion, status: r.status, precision: r.precision, recall: r.recall, f1: r.f1, tp: r.tp, fp: r.fp, fn: r.fn };
+    } catch {
+      return null;
+    }
+  }
+
   /** 프로젝트 분석 + 모듈별 준비 상태 */
   async function buildState(refresh) {
     const [{ profile, index }, list] = await Promise.all([scanProject(projectRoot), entries()]);
     const tools = await toolStatus(list, refresh);
+    const benches = new Map(await Promise.all(list.map(async (e) => /** @type {[string, any]} */ ([e.id, await latestBench(e.id)]))));
     const modules = list.map((e) => {
       const m = e.manifest;
       const missing = (m.requires ?? []).filter((r) => !tools.get(r.bin)?.ok).map((r) => ({ bin: r.bin, install: r.install }));
@@ -99,8 +114,12 @@ export function createApi({ projectRoot, modulesDir, aiProvider = createAiProvid
         applies: e.errors.length ? { applies: false, matched: [] } : appliesTo(m, index),
         toolVersions: Object.fromEntries((m.requires ?? []).filter((r) => tools.get(r.bin)?.ok).map((r) => [r.bin, tools.get(r.bin).version])),
         missing,
+        aiBlocked,
         ready: !e.errors.length && !missing.length && !aiBlocked,
         blockedReason: e.errors.length ? 'module.json 오류' : missing.length ? `${missing[0].bin} 미설치` : aiBlocked ? 'AI 설정 필요' : null,
+        criteria: m.criteria ?? null,
+        i18n: m.i18n ?? {},
+        bench: benches.get(e.id) ?? null,
       };
     });
     return { profile, modules };
@@ -112,24 +131,27 @@ export function createApi({ projectRoot, modulesDir, aiProvider = createAiProvid
     return issue;
   }
 
+  /** 어디서 시작했든(화면 · 다른 탭 · Claude 의 run_scan) 모든 검사를 화면에 알려 텔레메트리가 따라가게 합니다. */
   function startScan(modules, options) {
-    return runs.start({ modules, options, afterRun: async () => issuesChanged() });
+    const runId = runs.start({ modules, options, afterRun: async () => issuesChanged() });
+    publish({ type: 'run', runId, kind: 'scan' });
+    return runId;
   }
 
   // ───────── 작업: 모듈 추천 ─────────
 
-  async function createRecommendJob() {
+  async function createRecommendJob(lang) {
     if (assistant.mode === 'claude') {
-      const job = jobs.create({ kind: 'recommend', via: 'claude' });
+      const job = jobs.create({ kind: 'recommend', via: 'claude', lang });
       claude.notify(job);
       return job;
     }
-    const job = jobs.create({ kind: 'recommend', via: assistant.mode === 'api' ? 'api' : 'rules' });
+    const job = jobs.create({ kind: 'recommend', via: assistant.mode === 'api' ? 'api' : 'rules', lang });
     (async () => {
       jobs.start(job.id);
       const { profile, modules } = await buildState(false);
       const aiCalls = [];
-      const result = await recommendModules({ profile, modules, aiProvider, onAiCall: (r) => aiCalls.push(r) });
+      const result = await recommendModules({ profile, modules, aiProvider, onAiCall: (r) => aiCalls.push(r), lang });
       jobs.finish(job.id, result, { aiCalls });
     })().catch((err) => jobs.fail(job.id, err.message));
     return job;
@@ -137,7 +159,7 @@ export function createApi({ projectRoot, modulesDir, aiProvider = createAiProvid
 
   // ───────── 작업: 수정안 ─────────
 
-  async function createPatchJob(issueId, optionKeys) {
+  async function createPatchJob(issueId, optionKeys, lang) {
     if (assistant.mode === 'rules') {
       throw new HttpError(400, 'AI 가 연결되어 있지 않습니다. Claude Code 에 SafeScan 을 연결하거나 ANTHROPIC_API_KEY 를 설정하세요');
     }
@@ -165,12 +187,12 @@ export function createApi({ projectRoot, modulesDir, aiProvider = createAiProvid
     }
 
     const via = assistant.mode;
-    const job = jobs.create({ kind: 'patch', via, issueId: issue.id, options: labels, internal: { prepared, options, issueId: issue.id } });
+    const job = jobs.create({ kind: 'patch', via, issueId: issue.id, options: labels, lang, internal: { prepared, options, issueId: issue.id } });
     await withIssues(storeDir, async (s) => {
       addThreadEntry(await issueOr404(s, issue.id), {
         type: 'patch_requested', actor: 'user',
         message: `${via === 'claude' ? 'Claude' : 'AI'} 에게 수정안을 요청했습니다${labels.length ? ` (${labels.join(', ')})` : ''}`,
-        data: { options: labels, jobId: job.id },
+        data: { options: labels, optionKeys: options, jobId: job.id, via },
       });
     });
     issuesChanged();
@@ -182,7 +204,7 @@ export function createApi({ projectRoot, modulesDir, aiProvider = createAiProvid
         jobs.start(job.id);
         const aiCalls = [];
         try {
-          const r = await proposePatch({ issue, prepared, options, aiProvider, onAiCall: (c) => aiCalls.push(c) });
+          const r = await proposePatch({ issue, prepared, options, aiProvider, onAiCall: (c) => aiCalls.push(c), lang });
           await recordProposal(job, r.proposed, r.explanation, { model: r.model, costUsd: r.costUsd }, aiCalls);
         } catch (err) {
           await recordFailure(job, err.message, 'safescan', aiCalls);
@@ -195,7 +217,7 @@ export function createApi({ projectRoot, modulesDir, aiProvider = createAiProvid
   async function recordProposal(job, proposed, explanation, data = {}, aiCalls) {
     const { prepared } = jobs.internal(job.id);
     const patchId = randomBytes(6).toString('hex');
-    patches.set(patchId, { issueId: job.issueId, file: prepared.file, original: prepared.original, proposed, explanation });
+    patches.set(patchId, { issueId: job.issueId, jobId: job.id, file: prepared.file, original: prepared.original, proposed, explanation });
     await withIssues(storeDir, async (s) => {
       addThreadEntry(await issueOr404(s, job.issueId), {
         type: 'patch_proposed', actor: 'ai', message: explanation,
@@ -213,7 +235,7 @@ export function createApi({ projectRoot, modulesDir, aiProvider = createAiProvid
     if (job.kind !== 'patch') return;
     await withIssues(storeDir, async (s) => {
       const target = findIssue(s, job.issueId);
-      if (target) addThreadEntry(target, { type: 'patch_failed', actor, message: `수정안을 만들지 못했습니다: ${reason}`, data: { jobId: job.id } });
+      if (target) addThreadEntry(target, { type: 'patch_failed', actor, message: `수정안을 만들지 못했습니다: ${reason}`, data: { jobId: job.id, reason } });
     });
     issuesChanged();
   }
@@ -275,7 +297,7 @@ export function createApi({ projectRoot, modulesDir, aiProvider = createAiProvid
       const job = jobs.next();
       if (!job) return null;
       jobs.start(job.id, 'chat');
-      return jobDetail(job);
+      return { ...(await jobDetail(job)), remaining: jobs.queued().filter((j) => j.via === 'claude' && j.status === 'queued').length };
     },
 
     /** 채널 알림에 들어 있는 job_id 로 작업을 가져갑니다 */
@@ -372,7 +394,7 @@ export function createApi({ projectRoot, modulesDir, aiProvider = createAiProvid
         assistant: assistantInfo(),
         patchOptions: Object.fromEntries(Object.entries(PATCH_OPTIONS).map(([k, v]) => [k, v.label])),
         activeRun: runs.active,
-        jobs: jobs.queued(),
+        jobs: jobs.recent(),
       };
     },
 
@@ -380,7 +402,7 @@ export function createApi({ projectRoot, modulesDir, aiProvider = createAiProvid
     stream(req, _url, _body, _params, res) {
       res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
       const send = (event) => res.write(`data: ${JSON.stringify(event)}\n\n`);
-      send({ type: 'hello', assistant: assistantInfo(), jobs: jobs.queued() });
+      send({ type: 'hello', assistant: assistantInfo(), jobs: jobs.recent(), activeRun: runs.active });
       bus.on('event', send);
       const keepAlive = setInterval(() => res.write(': ping\n\n'), 25_000);
       req.on('close', () => {
@@ -390,8 +412,8 @@ export function createApi({ projectRoot, modulesDir, aiProvider = createAiProvid
       return undefined;
     },
 
-    async recommend() {
-      return { job: await createRecommendJob() };
+    async recommend(_req, _url, body) {
+      return { job: await createRecommendJob(typeof body?.lang === 'string' ? body.lang : 'ko') };
     },
 
     async job(_req, _url, _body, params) {
@@ -405,7 +427,7 @@ export function createApi({ projectRoot, modulesDir, aiProvider = createAiProvid
       if (open && job.kind === 'patch') {
         await withIssues(storeDir, async (s) => {
           const target = findIssue(s, job.issueId);
-          if (target) addThreadEntry(target, { type: 'patch_rejected', actor: 'user', message: '수정안 요청을 취소했습니다', data: { jobId: job.id } });
+          if (target) addThreadEntry(target, { type: 'patch_cancelled', actor: 'user', message: '수정안 요청을 취소했습니다', data: { jobId: job.id } });
         });
         issuesChanged();
       }
@@ -447,7 +469,7 @@ export function createApi({ projectRoot, modulesDir, aiProvider = createAiProvid
 
     /** 수정안 요청 → 작업. 결과는 /api/stream 의 job 이벤트로 옵니다. */
     async requestPatch(_req, _url, body, params) {
-      return { job: await createPatchJob(params.id, body?.options) };
+      return { job: await createPatchJob(params.id, body?.options, typeof body?.lang === 'string' ? body.lang : 'ko') };
     },
 
     /** 수정안 적용 → 해결 중으로 이동 → 해당 모듈만 다시 검사해 해결됐는지 확인 */
@@ -463,10 +485,11 @@ export function createApi({ projectRoot, modulesDir, aiProvider = createAiProvid
       }
       await writeFile(path, patch.proposed);
       patches.delete(params.patchId);
+      jobs.markConsumed(patch.jobId, 'accepted');
 
       const issue = await withIssues(storeDir, async (store) => {
         const target = await issueOr404(store, patch.issueId);
-        addThreadEntry(target, { type: 'patch_accepted', actor: 'user', message: `수정안을 ${patch.file} 에 적용했습니다. 다시 검사합니다` });
+        addThreadEntry(target, { type: 'patch_accepted', actor: 'user', message: `${patch.file} 파일에 수정안을 적용했습니다. 다시 검사합니다`, data: { file: patch.file } });
         setIssueStatus(target, 'in_progress', 'user');
         return target;
       });
@@ -479,12 +502,17 @@ export function createApi({ projectRoot, modulesDir, aiProvider = createAiProvid
           await withIssues(storeDir, async (store) => {
             const target = findIssue(store, patch.issueId);
             if (!target || target.status === 'resolved') return;
-            const reason = mod.status === 'ok' ? '수정 후 재검사에서도 여전히 발견됩니다' : `재검사를 마치지 못했습니다 (${mod.reason ?? mod.status})`;
-            addThreadEntry(target, { type: 'verify_failed', actor: 'safescan', runId: result.runId, message: reason });
+            const still = mod.status === 'ok';
+            const reason = still ? '수정 후 재검사에서도 여전히 발견됩니다' : `재검사를 마치지 못했습니다 (${mod.reason ?? mod.status})`;
+            addThreadEntry(target, {
+              type: 'verify_failed', actor: 'safescan', runId: result.runId, message: reason,
+              data: { reason: still ? 'still_found' : 'incomplete', status: mod.status },
+            });
           });
           issuesChanged();
         },
       });
+      publish({ type: 'run', runId, kind: 'verify', issueId: issue.id });
       return { runId, issue };
     },
 
@@ -492,6 +520,7 @@ export function createApi({ projectRoot, modulesDir, aiProvider = createAiProvid
       const patch = patches.get(params.patchId);
       patches.delete(params.patchId);
       if (!patch) return { ok: true };
+      jobs.markConsumed(patch.jobId, 'rejected');
       const issue = await withIssues(storeDir, async (store) => {
         const target = await issueOr404(store, patch.issueId);
         addThreadEntry(target, { type: 'patch_rejected', actor: 'user', message: '수정안을 적용하지 않았습니다' });

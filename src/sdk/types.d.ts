@@ -60,6 +60,17 @@ export interface ModuleManifest {
   options?: Record<string, OptionSpec>;
   /** 모듈 전체 제한 시간(초). 기본 300 */
   timeoutSec?: number;
+  /** 이 모듈의 수치 검증 기준. 화면의 모듈 상세에 "기준 대비 실제"로 표시됩니다. */
+  criteria?: ModuleCriteria;
+  /** 화면 언어별 번역. 없으면 기본(한국어) name · description 을 씁니다. 예: { "en": { "name": "...", "description": "..." } } */
+  i18n?: Record<string, { name?: string; description?: string; criteria?: string[] }>;
+}
+
+export interface ModuleCriteria {
+  /** 신뢰도 구간과 뜻. min 이상이면 그 구간입니다 (높은 순서로 적기). */
+  confidence?: { min: number; label: string; description?: string }[];
+  /** safescan bench 정확도 목표 (0~1). 최근 벤치 결과와 비교해 화면에 통과 · 미달을 보여 줍니다. */
+  accuracy?: { precision?: number; recall?: number };
 }
 
 export interface Requirement {
@@ -381,7 +392,7 @@ export interface ThreadEntry {
     | 'status'                                           // 칸반 열 이동
     | 'patch_requested' | 'patch_proposed'               // AI 수정 요청 · 제안
     | 'patch_failed'                                     // AI 가 수정안을 만들지 못함
-    | 'patch_accepted' | 'patch_rejected'                // 사용자의 수락 · 거절 · 요청 취소
+    | 'patch_accepted' | 'patch_rejected' | 'patch_cancelled'   // 사용자의 수락 · 거절 · 요청 취소
     | 'verify_failed';                                   // 수정 후 재검사에서 여전히 발견
   actor: 'safescan' | 'user' | 'ai';
   runId?: string;

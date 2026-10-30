@@ -32,7 +32,7 @@ async function request(path, { method = 'GET', body } = {}) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const err = new Error(data.error ?? `요청에 실패했습니다 (${res.status})`);
+    const err = new Error(data.error ?? `${res.status}`);
     err.status = res.status;
     throw err;
   }
@@ -43,13 +43,14 @@ const post = (path, body = {}) => request(path, { method: 'POST', body });
 
 export const api = {
   state: (refresh = false) => request(`/state${refresh ? '?refresh=1' : ''}`),
-  recommend: () => post('/recommend'),
+  /** lang: AI 가 판단 근거를 쓸 언어 (화면 언어) */
+  recommend: (lang) => post('/recommend', { lang }),
   job: (id) => request(`/jobs/${id}`),
   cancelJob: (id) => post(`/jobs/${id}/cancel`),
   startRun: (modules) => post('/runs', { modules }),
   issues: () => request('/issues'),
   setStatus: (id, status) => post(`/issues/${id}/status`, { status }),
-  requestPatch: (id, options) => post(`/issues/${id}/patch`, { options }),
+  requestPatch: (id, options, lang) => post(`/issues/${id}/patch`, { options, lang }),
   acceptPatch: (id, patchId) => post(`/issues/${id}/patch/${patchId}/accept`),
   rejectPatch: (id, patchId) => post(`/issues/${id}/patch/${patchId}/reject`),
 };
@@ -67,7 +68,7 @@ export function subscribeRun(runId, onEvent) {
   return () => source.close();
 }
 
-/** 화면 전체 이벤트: 작업 진행(job) · 이슈 변경(issues) · AI 연결 상태(assistant) */
+/** 화면 전체 이벤트: 작업 진행(job) · 이슈 변경(issues) · AI 연결 상태(assistant) · 검사 시작(run) */
 export function subscribeApp(onEvent) {
   const source = new EventSource(withToken('/stream'));
   source.onmessage = (message) => onEvent(JSON.parse(message.data));

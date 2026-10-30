@@ -8,6 +8,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { createAiProvider } from '../core/ai.js';
+import { langName } from '../server/ai-tasks.js';
 import { startServer } from '../server/index.js';
 
 const VERSION = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).version;
@@ -151,12 +152,12 @@ async function callTool(name, args, { bridge, openUrl }) {
   switch (name) {
     case 'status': {
       const issues = await bridge.listIssues();
-      const open = bridge.openJobs();
+      const waiting = bridge.openJobs().filter((j) => j.via === 'claude' && j.status === 'queued');
       return [
         'SafeScan 이 연결되어 있습니다.',
         `- 화면: ${bridge.uiUrl}`,
         `- 프로젝트: ${bridge.projectRoot}`,
-        `- 열린 이슈 ${issues.length}개 · 기다리는 작업 ${open.filter((j) => j.status === 'queued').length}개`,
+        `- 열린 이슈 ${issues.length}개 · 기다리는 작업 ${waiting.length}개${waiting.length ? ` (${waiting.map((j) => `#${j.id} ${j.kind === 'patch' ? '수정안' : '모듈 추천'}`).join(', ')})` : ''}`,
         '- 화면 버튼이 이 대화로 바로 전달되려면 Claude Code 를 `claude --dangerously-load-development-channels server:safescan` 로 시작해야 합니다 (CLI 전용, 연구 미리보기).',
       ].join('\n');
     }
@@ -214,12 +215,14 @@ async function callTool(name, args, { bridge, openUrl }) {
   }
 }
 
-function formatJob({ job, prepared, instructions, issue, context }) {
+function formatJob({ job, prepared, instructions, issue, context, remaining }) {
+  const after = remaining ? `\n\n(이 작업 다음에도 기다리는 작업이 ${remaining}개 더 있습니다. 끝나면 next_job 으로 이어서 처리하세요.)` : '';
   if (job.kind === 'recommend') {
-    return formatRecommendJob(job, context);
+    return formatRecommendJob(job, context) + after;
   }
   return [
     `SafeScan 작업 #${job.id} — 이슈 수정안`,
+    `답변 언어: explanation 은 ${langName(job.lang)}로 쓰세요.`,
     '할 일:',
     '1. 아래 이슈와 파일 내용을 보고, 이 이슈만 고치는 가장 작은 수정안을 만드세요.',
     '2. 파일을 직접 고치지 마세요. 사용자가 SafeScan 화면에서 비교한 뒤 적용합니다.',
@@ -239,7 +242,7 @@ function formatJob({ job, prepared, instructions, issue, context }) {
       prepared.text,
       '----- 파일 내용 끝 -----',
     ].join('\n')),
-  ].join('\n');
+  ].join('\n') + after;
 }
 
 function formatRecommendJob(job, context) {
@@ -247,7 +250,7 @@ function formatRecommendJob(job, context) {
     `SafeScan 작업 #${job.id} — 검사 모듈 추천`,
     '할 일: 아래 프로젝트 정보와 모듈 목록을 보고 실행할 모듈을 고른 뒤 submit_recommendation 으로 제출하세요.',
     '- selected: ready 가 true 인 모듈 id 만',
-    '- reasoning: 한국어 한두 문장, "이 프로젝트는 ~로 판단됩니다. ~를 켭니다." 형식',
+    `- reasoning: ${langName(job.lang)} 한두 문장. 프로젝트를 어떻게 판단했는지와 어떤 모듈을 왜 켜는지`,
     '필요하면 프로젝트 파일을 직접 읽어 판단해도 됩니다.',
     '',
     wrapData(JSON.stringify(context, null, 2)),

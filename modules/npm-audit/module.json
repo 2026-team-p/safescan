@@ -25,5 +25,34 @@
       "default": false
     }
   },
-  "timeoutSec": 120
+  "timeoutSec": 120,
+  "criteria": {
+    "confidence": [
+      { "min": 0.9, "label": "직접 의존성", "description": "package.json 에 직접 적은 패키지가 권고 범위에 해당" },
+      { "min": 0.75, "label": "간접 의존성", "description": "다른 패키지를 거쳐 설치된 패키지가 권고 범위에 해당" }
+    ],
+    "accuracy": { "recall": 0.9 }
+  },
+  "i18n": {
+    "en": {
+      "name": "npm dependency vulnerabilities",
+      "description": "Finds npm packages pinned in package-lock.json whose versions match published security advisories (GitHub Advisory).",
+      "criteria": ["Direct dependency", "Transitive dependency"]
+    },
+    "ja": {
+      "name": "npm 依存関係の脆弱性検査",
+      "description": "package-lock.json に固定された npm パッケージのうち、公開されたセキュリティ勧告（GitHub Advisory）に該当するバージョンを検出します。",
+      "criteria": ["直接依存", "間接依存"]
+    },
+    "es": {
+      "name": "Vulnerabilidades de dependencias npm",
+      "description": "Detecta paquetes npm fijados en package-lock.json cuyas versiones coinciden con avisos de seguridad publicados (GitHub Advisory).",
+      "criteria": ["Dependencia directa", "Dependencia transitiva"]
+    },
+    "zh": {
+      "name": "npm 依赖漏洞检查",
+      "description": "找出 package-lock.json 中锁定的版本命中公开安全公告（GitHub Advisory）的 npm 包。",
+      "criteria": ["直接依赖", "间接依赖"]
+    }
+  }
 }

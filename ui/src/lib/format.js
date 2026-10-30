@@ -1,35 +1,28 @@
-export const STAGES = [
-  { key: 'preprocess', label: '전처리' },
-  { key: 'tool', label: '툴' },
-  { key: 'postprocess', label: '후처리' },
-  { key: 'verify', label: '검증' },
-];
-export const STAGE_LABEL = Object.fromEntries(STAGES.map((s) => [s.key, s.label]));
+// 표시용 도우미. 문장은 locales/*.json 에 있고, 여기에는 언어와 무관한 값(아이콘 · 순서 · 표기)만 둡니다.
+import i18n from '../i18n.js';
 
-export const SEVERITY = {
-  critical: { icon: '🔴', label: '크리티컬', hint: '당장 서버가 뚫릴 수 있는 치명적 결함' },
-  high: { icon: '🟠', label: '위험', hint: '잠재적 데이터 유출 위험' },
-  medium: { icon: '🟡', label: '주의', hint: '권장 보안 설정 누락' },
-  low: { icon: '🔵', label: '참고', hint: '코드 스멜 · 정보성' },
-};
+export const STAGES = ['preprocess', 'tool', 'postprocess', 'verify'];
 export const SEVERITY_ORDER = ['critical', 'high', 'medium', 'low'];
-
+export const SEVERITY_ICON = { critical: '🔴', high: '🟠', medium: '🟡', low: '🔵' };
 export const COLUMNS = [
-  { key: 'discovered', icon: '👀', label: '발견됨' },
-  { key: 'in_progress', icon: '🛠️', label: '해결 중' },
-  { key: 'resolved', icon: '✅', label: '조치 완료' },
+  { key: 'discovered', icon: '👀' },
+  { key: 'in_progress', icon: '🛠️' },
+  { key: 'resolved', icon: '✅' },
 ];
+export const ACTOR_ICON = { safescan: '🛡️', user: '👤', ai: '🤖' };
 
-export const CATEGORY = {
-  sast: '코드 분석', dast: '동적 분석', dependency: '의존성', secrets: '비밀 값',
-  config: '설정', iac: '인프라 코드', container: '컨테이너', other: '기타',
+/** 프로젝트 분석 결과의 공식 표기 */
+const DISPLAY = {
+  javascript: 'JavaScript', typescript: 'TypeScript', python: 'Python', java: 'Java', kotlin: 'Kotlin', go: 'Go',
+  ruby: 'Ruby', php: 'PHP', csharp: 'C#', rust: 'Rust',
+  react: 'React', next: 'Next.js', vue: 'Vue', nuxt: 'Nuxt', svelte: 'Svelte', angular: 'Angular', express: 'Express',
+  fastify: 'Fastify', koa: 'Koa', nestjs: 'NestJS', hono: 'Hono', django: 'Django', flask: 'Flask', fastapi: 'FastAPI', spring: 'Spring',
+  npm: 'npm', yarn: 'Yarn', pnpm: 'pnpm', bun: 'Bun', pip: 'pip', pipenv: 'Pipenv', poetry: 'Poetry', maven: 'Maven',
+  gradle: 'Gradle', bundler: 'Bundler', composer: 'Composer', cargo: 'Cargo',
 };
+export const display = (name) => DISPLAY[name] ?? name;
 
-export const ACTOR = {
-  safescan: { icon: '🛡️', label: 'SafeScan' },
-  user: { icon: '👤', label: '나' },
-  ai: { icon: '🤖', label: 'AI' },
-};
+export const maxSeverity = (counts) => SEVERITY_ORDER.find((s) => (counts?.[s] ?? 0) > 0) ?? null;
 
 const pad = (n) => String(n).padStart(2, '0');
 
@@ -39,8 +32,11 @@ export function clock(iso) {
 }
 
 export function dateTime(iso) {
-  const d = new Date(iso);
-  return `${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return new Intl.DateTimeFormat(i18n.language, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso));
+}
+
+export function shortDate(iso) {
+  return new Intl.DateTimeFormat(i18n.language, { month: 'numeric', day: 'numeric' }).format(new Date(iso));
 }
 
 export function duration(ms) {
@@ -51,9 +47,15 @@ export function duration(ms) {
 }
 
 export const usd = (v) => `$${(v ?? 0).toFixed(4)}`;
+export const percent = (v) => (v == null ? '—' : `${Math.round(v * 100)}%`);
 
 export const whereOf = (f) => (f?.location ? `${f.location.file}${f.location.startLine ? `:${f.location.startLine}` : ''}` : '');
 
 export function baseName(path) {
   return path.split(/[\\/]/).filter(Boolean).pop() ?? path;
+}
+
+/** 목록을 그 언어의 쉼표 · 접속사로 잇습니다 (예: "A, B 및 C") */
+export function listOf(items) {
+  return new Intl.ListFormat(i18n.language, { style: 'short', type: 'conjunction' }).format(items);
 }

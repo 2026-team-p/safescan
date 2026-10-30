@@ -51,6 +51,10 @@ test('사라지면 조치 완료, 다시 나타나면 같은 이슈가 다시 �
   assert.equal(store.issues.length, 2);
   assert.equal(r1.status, 'discovered');
   assert.deepEqual(r1.thread.map((t) => t.type), ['detected', 'resolved', 'reopened']);
+  // 화면이 언어별 문장을 만들 수 있게 숫자 · 이름을 함께 남긴다
+  assert.deepEqual(r1.thread.map((t) => t.data), [
+    { moduleId: 'm', count: 1, titles: ['제목 r1'] }, { moduleId: 'm' }, { count: 1 },
+  ]);
 });
 
 test('실패 · 건너뜀 모듈은 이슈를 해결로 옮기지 않고, 다른 모듈 이슈도 건드리지 않는다', () => {
@@ -80,6 +84,8 @@ test('의존성 결과는 패키지 단위로 한 이슈(스레드)에 묶이고
   assert.equal(partial.changed, 1);
   assert.equal(issue.severity, 'medium');
   assert.match(issue.thread.at(-1).message, /사라짐 1건/);
+  assert.deepEqual(issue.thread.at(-1).data, { added: 0, removed: 1, count: 1 });
+  assert.equal(issue.title, 'lodash@4.17.20 보안 권고 1건', '한 건이어도 패키지 · 버전이 보이는 제목');
 });
 
 test('저장 · 읽기와 id 앞부분으로 찾기', async () => {
