@@ -1,7 +1,18 @@
 {
-  "lang": { "label": "语言" },
-  "theme": { "label": "外观", "system": "跟随系统", "light": "浅色", "dark": "深色" },
-  "tab": { "scan": "检查", "issues": "问题" },
+  "lang": {
+    "label": "语言"
+  },
+  "theme": {
+    "label": "外观",
+    "system": "跟随系统",
+    "light": "浅色",
+    "dark": "深色"
+  },
+  "tab": {
+    "scan": "检查",
+    "issues": "问题",
+    "history": "记录"
+  },
   "assistant": {
     "claude": "已连接 Claude",
     "claudeAuto": "已连接 Claude · 自动",
@@ -14,7 +25,14 @@
     "waiting": "等待 Claude {{count}}",
     "waitingTitle": "还有 {{count}} 个任务尚未被 Claude 领取。请在 Claude 聊天中输入“{{request}}”"
   },
-  "telemetry": { "aria": "实时资源", "cost": "AI 费用", "time": "耗时", "confidence": "置信度", "subscription": "订阅", "subscriptionTitle": "在 Claude 会话中完成的任务计入订阅用量，因此这里无法统计费用" },
+  "telemetry": {
+    "aria": "实时资源",
+    "cost": "AI 费用",
+    "time": "耗时",
+    "confidence": "置信度",
+    "subscription": "订阅",
+    "subscriptionTitle": "在 Claude 会话中完成的任务计入订阅用量，因此这里无法统计费用"
+  },
   "onboarding": {
     "title": "正在分析当前目录的 package.json · pom.xml…",
     "sub": "正在识别语言、框架和包管理器，并查找已安装的安全工具",
@@ -22,9 +40,21 @@
     "retry": "重试",
     "tokenError": "缺少访问令牌或令牌已变更。请重新打开终端中显示的地址，或让 Claude“打开 SafeScan”。"
   },
-  "setup": { "eyebrow": "检查设置", "title": "为这个项目选择检查项" },
-  "stack": { "languages": "语言", "frameworks": "框架", "packageManagers": "包管理器", "markers": "关键文件", "none": "未检测到" },
-  "wand": { "button": "按我的项目自动配置检查", "busy": "正在查看项目…" },
+  "setup": {
+    "eyebrow": "检查设置",
+    "title": "为这个项目选择检查项"
+  },
+  "stack": {
+    "languages": "语言",
+    "frameworks": "框架",
+    "packageManagers": "包管理器",
+    "markers": "关键文件",
+    "none": "未检测到"
+  },
+  "wand": {
+    "button": "按我的项目自动配置检查",
+    "busy": "正在查看项目…"
+  },
   "advice": {
     "claude": "Claude 推荐 · {{time}}",
     "ai": "AI 推荐 · {{cost}}",
@@ -46,7 +76,12 @@
     "count": "已选 {{selected}} / {{total}}",
     "search": "按名称、工具或 OWASP 搜索",
     "empty": "没有符合条件的模块",
-    "filter": { "all": "全部", "applies": "适用于本项目", "ready": "可运行", "selected": "已选择" }
+    "filter": {
+      "all": "全部",
+      "applies": "适用于本项目",
+      "ready": "可运行",
+      "selected": "已选择"
+    }
   },
   "module": {
     "applies": "适用于本项目",
@@ -76,7 +111,10 @@
     "benchSkipped": "最近一次基准测试未运行（{{status}}）",
     "none": "此模块没有定义验证标准（module.json 中的 criteria）"
   },
-  "fab": { "start": "用 {{count}} 个模块开始检查", "empty": "请选择模块" },
+  "fab": {
+    "start": "用 {{count}} 个模块开始检查",
+    "empty": "请选择模块"
+  },
   "job": {
     "sent": "已发送给 Claude（#{{id}}）",
     "claudeRecommend": "Claude 正在选择模块…",
@@ -105,10 +143,23 @@
     "findings": "发现 {{count}} 个",
     "clean": "没有问题",
     "confidence": "置信度 {{value}}%",
-    "details": "详情"
+    "details": "详情",
+    "eyebrowVerify": "复查完成"
   },
-  "status": { "pending": "等待", "running": "运行中", "ok": "完成", "skipped": "已跳过", "failed": "失败", "timeout": "超时" },
-  "stage": { "preprocess": "预处理", "tool": "工具", "postprocess": "后处理", "verify": "验证" },
+  "status": {
+    "pending": "等待",
+    "running": "运行中",
+    "ok": "完成",
+    "skipped": "已跳过",
+    "failed": "失败",
+    "timeout": "超时"
+  },
+  "stage": {
+    "preprocess": "预处理",
+    "tool": "工具",
+    "postprocess": "后处理",
+    "verify": "验证"
+  },
   "detail": {
     "close": "关闭",
     "stages": "阶段",
@@ -127,18 +178,47 @@
     "noFindings": "未发现问题",
     "logs": "此模块的日志",
     "reason": "原因",
-    "waitingResult": "检查结束后，这里会显示详细结果"
+    "waitingResult": "检查结束后，这里会显示详细结果",
+    "accuracy": "准确度",
+    "confidenceBands": "置信度分布",
+    "options": "使用的选项",
+    "missed": "漏掉的答案",
+    "extra": "不在答案表中的结果（误报）",
+    "benchNote": "此模块版本的基准测试结果（{{date}}）。本次检查没有答案表，未直接测量",
+    "noAccuracy": "在项目根目录放置答案表 safescan.expected.json，即可测量本次检查的准确度"
   },
-  "console": { "title": "透明控制台", "lines": "{{count}} 行", "follow": "自动滚动", "waiting": "正在等待日志…", "ai": "AI {{model}} · {{tokens}} tok · {{cost}}" },
+  "console": {
+    "title": "透明控制台",
+    "lines": "{{count}} 行",
+    "follow": "自动滚动",
+    "waiting": "正在等待日志…",
+    "ai": "AI {{model}} · {{tokens}} tok · {{cost}}"
+  },
   "severity": {
-    "critical": "严重", "high": "高危", "medium": "中危", "low": "低危",
+    "critical": "严重",
+    "high": "高危",
+    "medium": "中危",
+    "low": "低危",
     "criticalHint": "可能立即导致服务器被攻破的致命缺陷",
     "highHint": "可能导致数据泄露",
     "mediumHint": "缺少推荐的安全设置",
     "lowHint": "代码异味 · 提示信息"
   },
-  "column": { "discovered": "已发现", "in_progress": "处理中", "resolved": "已处理" },
-  "category": { "sast": "代码分析", "dast": "动态分析", "dependency": "依赖", "secrets": "密钥", "config": "配置", "iac": "基础设施代码", "container": "容器", "other": "其他" },
+  "column": {
+    "discovered": "已发现",
+    "in_progress": "处理中",
+    "resolved": "已处理"
+  },
+  "category": {
+    "sast": "代码分析",
+    "dast": "动态分析",
+    "dependency": "依赖",
+    "secrets": "密钥",
+    "config": "配置",
+    "iac": "基础设施代码",
+    "container": "容器",
+    "other": "其他"
+  },
   "board": {
     "emptyTitle": "还没有问题",
     "emptyBody": "检查发现的问题会以卡片形式出现在这里。",
@@ -151,7 +231,9 @@
     "resolvedAt": "处理于 {{date}}",
     "items": "{{count}} 项"
   },
-  "issue": { "depTitle": "{{name}}@{{version}} 安全公告 {{count}} 条" },
+  "issue": {
+    "depTitle": "{{name}}@{{version}} 安全公告 {{count}} 条"
+  },
   "panel": {
     "aria": "问题详情",
     "status": "状态",
@@ -173,14 +255,30 @@
     "failed": "未能获得修复方案：{{error}}",
     "timeline": "时间线"
   },
-  "patchOption": { "stability": "稳定性优先", "performance": "性能优先", "keepStructure": "保持现有代码结构", "comments": "详细注释" },
-  "patch": { "claude": "Claude 的方案 · {{time}}", "ai": "AI 的方案", "masked": " · 已遮盖 {{count}} 个密钥", "reject": "拒绝", "accept": "应用并重新检查（Accept）" },
+  "patchOption": {
+    "stability": "稳定性优先",
+    "performance": "性能优先",
+    "keepStructure": "保持现有代码结构",
+    "comments": "详细注释"
+  },
+  "patch": {
+    "claude": "Claude 的方案 · {{time}}",
+    "ai": "AI 的方案",
+    "masked": " · 已遮盖 {{count}} 个密钥",
+    "reject": "拒绝",
+    "accept": "应用并重新检查（Accept）"
+  },
   "verify": {
     "running": "正在重新检查修改后的代码",
     "ok": "✅ 重新检查通过 — 不再发现这个问题",
     "fail": "⚠️ 重新检查后仍然存在。请换个选项重新请求"
   },
-  "actor": { "safescan": "SafeScan", "user": "我", "ai": "AI", "claude": "Claude" },
+  "actor": {
+    "safescan": "SafeScan",
+    "user": "我",
+    "ai": "AI",
+    "claude": "Claude"
+  },
   "thread": {
     "detected": "{{module}} 模块发现了 {{count}} 项",
     "changed": "重新检查的结果有变化：新增 {{added}} 项，消失 {{removed}} 项（当前 {{count}} 项）",
@@ -196,5 +294,116 @@
     "verify_incomplete": "重新检查未能完成（{{status}}）",
     "claudeSession": "Claude 会话 · {{time}}"
   },
-  "diff": { "changed": "改动 {{count}} 行", "before": "现有代码", "after": "建议代码", "gap": "… 相同的 {{count}} 行 …" }
+  "diff": {
+    "changed": "改动 {{count}} 行",
+    "before": "现有代码",
+    "after": "建议代码",
+    "gap": "… 相同的 {{count}} 行 …"
+  },
+  "options": {
+    "title": "选项",
+    "none": "此模块没有可更改的选项",
+    "advanced": "高级选项 {{count}} 个",
+    "changed": "已更改默认值 {{count}} 项",
+    "changedOne": "已更改",
+    "changedBadge": "已更改 {{count}} 项",
+    "reset": "恢复默认",
+    "required": "必填",
+    "on": "开启",
+    "off": "关闭",
+    "missing": "需要填写：{{option}} — 为空时将跳过此模块",
+    "error": {
+      "number": "请输入数字",
+      "min": "不能小于 {{min}}",
+      "max": "不能大于 {{max}}",
+      "url": "请输入以 http:// 或 https:// 开头的地址"
+    }
+  },
+  "report": {
+    "title": "检查指标",
+    "confidence": "平均置信度",
+    "confidenceSub": "{{count}} 个已运行模块的平均值",
+    "accuracy": "准确度",
+    "f1": "F1",
+    "precision": "精确率",
+    "recall": "召回率",
+    "byAnswerKey": "基于 {{file}} 答案表",
+    "byBench": "基于模块基准测试（已测 {{count}}/{{total}}）",
+    "notMeasured": "没有答案表和基准记录，无法测量",
+    "findings": "发现",
+    "duration": "耗时",
+    "modulesRan": "{{total}} 个中运行了 {{ran}} 个",
+    "ai": "AI 模型",
+    "noAi": "未使用",
+    "aiUsage": "调用 {{calls}} 次 · {{tokens}} 令牌 · {{cost}}",
+    "aiIdle": "{{model}} 可用（未调用）",
+    "aiOff": "模块没有可用的 AI（无 API 密钥）",
+    "byModule": "各模块指标",
+    "col": {
+      "module": "模块",
+      "status": "状态",
+      "findings": "发现",
+      "confidence": "置信度",
+      "accuracy": "准确度",
+      "duration": "时间",
+      "ai": "AI",
+      "options": "选项"
+    },
+    "counts": "命中 {{tp}} · 误报 {{fp}} · 漏报 {{fn}}",
+    "benchTag": "基准",
+    "optionsChanged": "已更改 {{count}} 项",
+    "optionsDefault": "默认",
+    "precisionPartial": "精确率 {{value}}（基于 {{count}}/{{total}} 个模块）"
+  },
+  "history": {
+    "eyebrow": "记录",
+    "title": "检查与 AI 任务记录",
+    "sub": "按检查比较置信度、准确度、发现数量和使用的 AI。点击一行查看各模块指标。",
+    "runs": "检查",
+    "runCount": "{{count}} 次",
+    "noRuns": "还没有检查记录",
+    "ai": "AI 任务",
+    "jobCount": "{{count}} 个",
+    "noJobs": "还没有 AI 任务记录。使用自动配置或 AI 修复后会显示在这里",
+    "recentJobs": "最近的任务",
+    "verify": "复查",
+    "modulesRan": "{{total}} 个模块中运行了 {{ran}} 个",
+    "answerKey": "答案表",
+    "issues": "问题 新增 {{created}} · 已解决 {{resolved}} · 未解决 {{open}}",
+    "openRun": "重新查看步骤和日志",
+    "byModel": "按模型统计",
+    "col": {
+      "model": "处理方",
+      "jobs": "请求",
+      "result": "结果",
+      "patches": "修改方案",
+      "resolved": "复查通过",
+      "tokens": "令牌",
+      "cost": "费用",
+      "avg": "平均时间"
+    },
+    "via": {
+      "claude": "已连接的 Claude 会话",
+      "api": "API 密钥",
+      "rules": "基于规则"
+    },
+    "jobsSplit": "推荐 {{recommend}} · 修改方案 {{patch}}",
+    "resultSplit": "完成 {{done}} · 失败 {{failed}} · 取消 {{cancelled}}",
+    "patchSplit": "应用 {{accepted}} · 拒绝 {{rejected}}",
+    "kind": {
+      "recommend": "模块推荐",
+      "patch": "修改方案"
+    },
+    "outcome": {
+      "failed": "失败",
+      "cancelled": "已取消",
+      "recommended": "已推荐",
+      "resolved": "已应用 → 已解决",
+      "stillFound": "已应用 → 仍被发现",
+      "incomplete": "已应用 → 复查未完成",
+      "accepted": "已应用",
+      "rejected": "已拒绝",
+      "proposed": "未审阅"
+    }
+  }
 }

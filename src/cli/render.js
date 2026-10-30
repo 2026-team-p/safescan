@@ -97,6 +97,15 @@ export function printSummary(result) {
     console.log(`${SEVERITY_LABEL[f.severity]}  ${f.title} ${c.dim(`(${f.ruleId})`)}`);
     console.log(c.dim(`          ${[f.moduleId, where, dep].filter(Boolean).join(' · ')}`));
   }
+  const scored = result.modules.filter((m) => m.accuracy);
+  if (scored.length) {
+    const pct = (v) => (v === null ? '-' : `${Math.round(v * 100)}%`);
+    console.log(`\n${c.bold('정확도')}  ${c.dim(`${result.expectedFile} 정답표 기준`)}`);
+    for (const m of scored) {
+      const a = m.accuracy;
+      console.log(`  ${m.moduleId.padEnd(width)}  정밀도 ${pct(a.precision).padStart(4)} · 재현율 ${pct(a.recall).padStart(4)} · F1 ${pct(a.f1).padStart(4)}  ${c.dim(`맞힘 ${a.tp} · 오탐 ${a.fp ?? '-'} · 놓침 ${a.fn}`)}`);
+    }
+  }
   if (result.issues) {
     const s = result.issues;
     console.log(`\n${c.bold('이슈')}  새로 ${s.created} · 바뀜 ${s.changed} · 다시 열림 ${s.reopened} · 해결 ${c.ok(s.resolved)} · 열린 이슈 ${c.bold(s.open)}`);

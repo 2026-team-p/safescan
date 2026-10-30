@@ -30,19 +30,22 @@
 - `-omit-raw` 로 요청 · 응답 원문을 기록하지 않습니다. 템플릿 경로 · curl 명령도 결과에 담지 않습니다.
 
 ## 옵션
-| 키 | 기본값 | 설명 |
-|---|---|---|
-| `targetUrl` | (없음) | 검사할 서버 주소. 없으면 모듈을 건너뜁니다 |
-| `allowRemote` | `false` | localhost 밖 주소 허용 |
-| `templates` | `bundled` | `bundled`: 모듈 내장 템플릿만 (오프라인 · 항상 같은 결과) / `all`: Nuclei 공개 템플릿 전체 (첫 실행 시 내려받음, 내장 템플릿은 제외) |
-| `severity` | `low,medium,high,critical` | 검사할 위험도 (`info` 포함 가능) |
-| `tags` | (비움) | 쉼표로 구분한 태그. 비우면 AI 또는 기본값(`exposure,misconfig`) |
-| `rateLimit` | `50` | 초당 최대 요청 수 |
-| `useAiTags` | `true` | AI 로 태그 고르기 (AI 가 없으면 기본값) |
+검사 설정 화면에는 앞의 세 개가 보이고, 나머지는 "고급" 아래에 있습니다.
+
+| 키 | 타입 | 기본값 | 설명 |
+|---|---|---|---|
+| `targetUrl` | string (필수, url) | (없음) | 검사할 서버 주소. 없으면 모듈을 건너뜁니다 |
+| `templates` | enum `bundled` · `all` | `bundled` | `bundled`: 모듈 내장 템플릿만 (오프라인 · 항상 같은 결과) / `all`: Nuclei 공개 템플릿 전체 (첫 실행 시 내려받음, 내장 템플릿은 제외) |
+| `severity` | multi `info` · `low` · `medium` · `high` · `critical` | `low,medium,high,critical` | 실행할 템플릿의 위험도 (`-severity`). 하나도 고르지 않았거나 위험도 · 태그에 맞는 템플릿이 없으면(예: `bundled` 에서 `info` 만) 건너뜁니다 |
+| `tags` | string (고급) | (비움) | 쉼표로 구분한 태그 (`-tags`). 비우면 AI 또는 기본값(`exposure,misconfig`) |
+| `useAiTags` | boolean (고급) | `true` | 태그가 비었을 때 AI 로 태그 고르기 (AI 가 없으면 기본값) |
+| `rateLimit` | number 1~1000 회 (고급) | `50` | 초당 최대 요청 수 (`-rl`) |
+| `allowRemote` | boolean (고급) | `false` | localhost 밖 주소 허용 |
 
 ```bash
-node bin/safescan.js scan <프로젝트 경로> -m nuclei-web -o nuclei-web.targetUrl=http://localhost:3000
+node bin/safescan.js scan <프로젝트 경로> -m nuclei-web -o nuclei-web.targetUrl=http://localhost:3000 -o nuclei-web.severity=high,critical
 ```
+`severity` 는 여러 개 고르기(multi)라 CLI 에서는 쉼표로 구분합니다. 예전 설정의 쉼표 문자열도 받습니다.
 
 ## 위험도 · 필드 매핑
 | nuclei | Finding |
@@ -81,10 +84,20 @@ node --test modules/nuclei-web/postprocess.test.js
 node modules/nuclei-web/fixtures/vulnerable/server.js 3999 &
 node bin/safescan.js scan modules/nuclei-web/fixtures/vulnerable -m nuclei-web -o nuclei-web.targetUrl=http://127.0.0.1:3999 -v
 ```
+
+### 정확도 (v0.2.0, nuclei 3.11.1)
+`safescan bench` 는 아직 옵션을 넣지 못해 '건너뜀'으로 끝나므로, 예제 서버를 띄운 뒤 예제 폴더 복사본에 `safescan.expected.json`(내용: `{ "modules": { "nuclei-web": <fixtures/expected.json> } }`)을 두고 `scan` 으로 쟀습니다.
+
+| 버전 | 정밀도 | 재현율 | F1 |
+|---|---|---|---|
+| 0.1.0 | 100% | 100% | 100% (TP 2 · FP 0 · FN 0) |
+| 0.2.0 | 100% | 100% | 100% (TP 2 · FP 0 · FN 0) |
+
+`criteria.accuracy` 목표는 정밀도 · 재현율 0.9 입니다.
 `fixtures/sample-output.jsonl` 은 위 서버를 실제 nuclei 로 검사한 출력에서 절대 경로 · base64 템플릿 · curl 명령만 뺀 것입니다.
 
 ## 코어 변경 요청
-1. **bench 가 예제 서버를 띄우고 `targetUrl` 을 넣어 주세요.** 지금 `safescan bench nuclei-web` 은 `targetUrl` 이 없어 '건너뜀'으로 끝납니다. 예: `fixtures/vulnerable/server.js` 가 있으면 빈 포트로 실행한 뒤 `options.targetUrl` 에 주입하고 끝나면 종료.
+1. **bench 가 예제 서버를 띄우고 `targetUrl` 을 넣어 주세요.** 지금 `safescan bench nuclei-web` 은 `targetUrl` 이 없어 '건너뜀'으로 끝납니다. 예: `fixtures/vulnerable/server.js` 가 있으면 빈 포트로 실행한 뒤 `options.targetUrl` 에 주입하고 끝나면 종료. 최소한 `bench` 에도 `-o 모듈.키=값` 을 받게 해 주세요.
 2. **모듈 폴더 안의 `*.test.js` 도 `npm test` 에 포함해 주세요.** 지금 `package.json` 의 `test` 는 `test/**/*.test.js` 만 실행하므로 `modules/nuclei-web/postprocess.test.js` 는 직접 실행해야 합니다.
 3. **URL 기반 결과를 위한 위치 필드가 필요합니다.** `Finding.location.file` 은 프로젝트 상대 경로만 허용하므로 DAST 결과의 URL 은 `description` · `raw.matchedAt` 에 담았습니다. UI 가 URL 을 보여 주려면 `Finding` 에 `url` 같은 필드가 필요합니다.
 4. **도구 버전 기록에서 ANSI 색상 코드를 제거해 주세요.** `nuclei -version` 은 `-nc` 를 줘도 색상 코드가 섞인 문장(`[INF] Nuclei Engine Version: v3.11.1`)을 내보내서, `probeTool`(`src/core/runner.js`)이 `toolVersions` 에 그대로 저장합니다.

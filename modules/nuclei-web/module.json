@@ -1,17 +1,13 @@
 {
   "id": "nuclei-web",
   "name": "Nuclei 웹 취약점 스캔",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "실행 중인 웹 서버(targetUrl)에 Nuclei 템플릿으로 요청을 보내 노출된 디버그 경로, 디렉터리 리스팅, 잘못된 서버 설정, 알려진 CVE 취약점을 찾습니다. 기본은 localhost 만 검사합니다.",
   "category": "dast",
   "owasp": ["A02:2025"],
   "cwe": ["CWE-548", "CWE-489"],
   "status": "experimental",
-  "tool": {
-    "name": "Nuclei",
-    "homepage": "https://github.com/projectdiscovery/nuclei",
-    "license": "MIT"
-  },
+  "tool": { "name": "Nuclei", "homepage": "https://github.com/projectdiscovery/nuclei", "license": "MIT" },
   "requires": [
     { "bin": "nuclei", "versionArgs": ["-version"], "install": "brew install nuclei (또는 https://github.com/projectdiscovery/nuclei#install-nuclei)" }
   ],
@@ -20,45 +16,229 @@
     "targetUrl": {
       "type": "string",
       "label": "검사할 서버 주소",
-      "description": "실행 중인 서버의 주소. 예: http://localhost:3000 (없으면 모듈을 건너뜁니다)"
-    },
-    "allowRemote": {
-      "type": "boolean",
-      "label": "localhost 밖 주소 허용",
-      "description": "내가 소유하거나 검사 권한이 있는 서버에만 켜세요. 꺼져 있으면 localhost · 127.0.0.1 · ::1 만 검사합니다",
-      "default": false
+      "description": "실행 중인 내 서버의 주소입니다. 비워 두면 이 검사를 건너뜁니다",
+      "placeholder": "http://localhost:3000",
+      "format": "url",
+      "required": true
     },
     "templates": {
       "type": "enum",
       "label": "템플릿 범위",
-      "description": "bundled: 모듈에 들어 있는 템플릿만 (오프라인, 항상 같은 결과) / all: Nuclei 공개 템플릿 전체 (첫 실행 시 내려받음, 모듈 내장 템플릿은 제외)",
+      "description": "기본은 모듈에 들어 있는 템플릿만 써서 항상 같은 결과가 나옵니다. 전체는 Nuclei 공개 템플릿으로 잘못된 설정 · 알려진 CVE 를 더 넓게 찾습니다 (처음에 내려받으며, 모듈 내장 템플릿은 빠짐)",
       "choices": ["bundled", "all"],
+      "choiceLabels": { "bundled": "기본 (내장 템플릿, 오프라인)", "all": "전체 (Nuclei 공개 템플릿)" },
       "default": "bundled"
     },
     "severity": {
-      "type": "string",
+      "type": "multi",
       "label": "검사할 위험도",
-      "description": "쉼표로 구분. info, low, medium, high, critical 중에서 고릅니다",
-      "default": "low,medium,high,critical"
+      "description": "고른 위험도의 템플릿만 실행합니다. 정보는 서버 종류 · 버전 같은 참고용 결과입니다",
+      "choices": ["info", "low", "medium", "high", "critical"],
+      "choiceLabels": { "info": "정보", "low": "참고", "medium": "주의", "high": "위험", "critical": "크리티컬" },
+      "default": ["low", "medium", "high", "critical"]
     },
     "tags": {
       "type": "string",
       "label": "템플릿 태그",
-      "description": "쉼표로 구분한 태그 (예: exposure,misconfig). 비워 두면 프로젝트에 맞춰 자동으로 고릅니다",
-      "default": ""
+      "description": "쉼표로 구분한 태그만 실행합니다. 비워 두면 프로젝트에 맞춰 자동으로 고릅니다 (AI 가 없으면 exposure,misconfig)",
+      "placeholder": "exposure,misconfig",
+      "default": "",
+      "advanced": true
+    },
+    "useAiTags": {
+      "type": "boolean",
+      "label": "AI 로 태그 고르기",
+      "description": "태그를 비워 두었고 AI 가 설정되어 있으면, 프로젝트 정보를 보고 AI 가 태그를 좁힙니다",
+      "default": true,
+      "advanced": true
     },
     "rateLimit": {
       "type": "number",
       "label": "초당 최대 요청 수",
       "description": "내 서버에 과부하가 걸리지 않도록 요청 속도를 제한합니다",
-      "default": 50
+      "default": 50,
+      "min": 1,
+      "max": 1000,
+      "unit": "회",
+      "advanced": true
     },
-    "useAiTags": {
+    "allowRemote": {
       "type": "boolean",
-      "label": "AI 로 태그 고르기",
-      "description": "AI 가 설정되어 있고 태그를 비워 둔 경우, 프로젝트 정보를 보고 AI 가 태그를 좁힙니다. AI 가 없으면 기본 태그를 씁니다",
-      "default": true
+      "label": "localhost 밖 주소 허용",
+      "description": "내가 소유하거나 검사 권한이 있는 서버에만 켜세요. 꺼져 있으면 localhost · 127.0.0.1 · ::1 만 검사합니다",
+      "default": false,
+      "advanced": true
     }
   },
-  "timeoutSec": 600
+  "timeoutSec": 600,
+  "criteria": {
+    "confidence": [
+      { "min": 0.9, "label": "응답에서 값 추출", "description": "실제 요청의 응답에서 템플릿이 값을 뽑아냄 (extracted-results)" },
+      { "min": 0.85, "label": "실제 요청으로 확인", "description": "실제 요청의 응답이 템플릿 matcher 와 일치" },
+      { "min": 0.6, "label": "정보성 결과", "description": "info · unknown 등급. 서버 종류 · 버전처럼 취약점이 아닐 수 있음" }
+    ],
+    "accuracy": { "precision": 0.9, "recall": 0.9 }
+  },
+  "i18n": {
+    "en": {
+      "name": "Nuclei web vulnerability scan",
+      "description": "Sends Nuclei template requests to a running web server (targetUrl) to find exposed debug paths, directory listings, server misconfigurations and known CVEs. Only localhost is scanned by default.",
+      "criteria": ["Value extracted from response", "Confirmed by real request", "Informational result"],
+      "options": {
+        "targetUrl": {
+          "label": "Server URL to scan",
+          "description": "The address of your running server. If left empty, this check is skipped.",
+          "placeholder": "http://localhost:3000"
+        },
+        "templates": {
+          "label": "Template set",
+          "description": "Default uses only the templates bundled with the module, so results are always the same. All uses the public Nuclei templates to find more misconfigurations and known CVEs (downloaded on first run; bundled templates are not included).",
+          "choiceLabels": { "bundled": "Default (bundled, offline)", "all": "All (public Nuclei templates)" }
+        },
+        "severity": {
+          "label": "Severities to scan",
+          "description": "Runs only templates of the selected severities. Info covers reference results such as server type and version.",
+          "choiceLabels": { "info": "Info", "low": "Low", "medium": "Medium", "high": "High", "critical": "Critical" }
+        },
+        "tags": {
+          "label": "Template tags",
+          "description": "Runs only the comma-separated tags. If left empty, tags are picked for your project (exposure,misconfig without AI).",
+          "placeholder": "exposure,misconfig"
+        },
+        "useAiTags": {
+          "label": "Pick tags with AI",
+          "description": "When tags are empty and AI is configured, AI narrows the tags based on your project."
+        },
+        "rateLimit": {
+          "label": "Max requests per second",
+          "description": "Limits the request rate so your server is not overloaded.",
+          "unit": "req"
+        },
+        "allowRemote": {
+          "label": "Allow non-localhost URLs",
+          "description": "Turn on only for servers you own or are allowed to test. When off, only localhost, 127.0.0.1 and ::1 are scanned."
+        }
+      }
+    },
+    "ja": {
+      "name": "Nuclei Web 脆弱性スキャン",
+      "description": "実行中の Web サーバー（targetUrl）に Nuclei テンプレートでリクエストを送り、公開されたデバッグパス、ディレクトリ一覧、サーバーの設定ミス、既知の CVE を検出します。既定では localhost のみ検査します。",
+      "criteria": ["レスポンスから値を抽出", "実際のリクエストで確認", "情報レベルの結果"],
+      "options": {
+        "targetUrl": {
+          "label": "検査するサーバーのアドレス",
+          "description": "実行中の自分のサーバーのアドレスです。空のままならこの検査はスキップします。",
+          "placeholder": "http://localhost:3000"
+        },
+        "templates": {
+          "label": "テンプレートの範囲",
+          "description": "既定はモジュール内蔵のテンプレートだけを使い、常に同じ結果になります。すべてを選ぶと Nuclei の公開テンプレートで設定ミスや既知の CVE を広く探します（初回にダウンロード、内蔵テンプレートは含まれません）。",
+          "choiceLabels": { "bundled": "既定（内蔵テンプレート、オフライン）", "all": "すべて（Nuclei 公開テンプレート）" }
+        },
+        "severity": {
+          "label": "検査する深刻度",
+          "description": "選んだ深刻度のテンプレートだけを実行します。情報はサーバーの種類やバージョンなど参考用の結果です。",
+          "choiceLabels": { "info": "情報", "low": "低", "medium": "中", "high": "高", "critical": "クリティカル" }
+        },
+        "tags": {
+          "label": "テンプレートのタグ",
+          "description": "カンマ区切りのタグだけを実行します。空のままならプロジェクトに合わせて自動で選びます（AI がなければ exposure,misconfig）。",
+          "placeholder": "exposure,misconfig"
+        },
+        "useAiTags": {
+          "label": "AI でタグを選ぶ",
+          "description": "タグが空で AI が設定されている場合、プロジェクト情報をもとに AI がタグを絞り込みます。"
+        },
+        "rateLimit": {
+          "label": "1 秒あたりの最大リクエスト数",
+          "description": "サーバーに負荷がかかりすぎないようリクエスト速度を制限します。",
+          "unit": "回"
+        },
+        "allowRemote": {
+          "label": "localhost 以外のアドレスを許可",
+          "description": "自分が所有するか検査の許可を得たサーバーでだけオンにしてください。オフなら localhost・127.0.0.1・::1 のみ検査します。"
+        }
+      }
+    },
+    "es": {
+      "name": "Escaneo web con Nuclei",
+      "description": "Envía peticiones con plantillas de Nuclei a un servidor web en ejecución (targetUrl) para encontrar rutas de depuración expuestas, listados de directorios, configuraciones incorrectas del servidor y CVE conocidos. Por defecto solo analiza localhost.",
+      "criteria": ["Valor extraído de la respuesta", "Confirmado con petición real", "Resultado informativo"],
+      "options": {
+        "targetUrl": {
+          "label": "URL del servidor a analizar",
+          "description": "La dirección de tu servidor en ejecución. Si se deja vacía, este análisis se omite.",
+          "placeholder": "http://localhost:3000"
+        },
+        "templates": {
+          "label": "Conjunto de plantillas",
+          "description": "Por defecto usa solo las plantillas incluidas en el módulo, así que el resultado siempre es el mismo. Todas usa las plantillas públicas de Nuclei para encontrar más configuraciones incorrectas y CVE conocidos (se descargan la primera vez; no incluye las plantillas del módulo).",
+          "choiceLabels": { "bundled": "Por defecto (incluidas, sin conexión)", "all": "Todas (plantillas públicas de Nuclei)" }
+        },
+        "severity": {
+          "label": "Gravedades a analizar",
+          "description": "Solo ejecuta plantillas de las gravedades elegidas. Info son resultados de referencia, como el tipo y la versión del servidor.",
+          "choiceLabels": { "info": "Info", "low": "Baja", "medium": "Media", "high": "Alta", "critical": "Crítica" }
+        },
+        "tags": {
+          "label": "Etiquetas de plantillas",
+          "description": "Solo ejecuta las etiquetas separadas por comas. Si se deja vacío, se eligen según tu proyecto (exposure,misconfig sin IA).",
+          "placeholder": "exposure,misconfig"
+        },
+        "useAiTags": {
+          "label": "Elegir etiquetas con IA",
+          "description": "Si las etiquetas están vacías y hay IA configurada, la IA acota las etiquetas según tu proyecto."
+        },
+        "rateLimit": {
+          "label": "Máximo de peticiones por segundo",
+          "description": "Limita la velocidad de peticiones para no sobrecargar tu servidor.",
+          "unit": "pet."
+        },
+        "allowRemote": {
+          "label": "Permitir URL fuera de localhost",
+          "description": "Actívalo solo para servidores tuyos o que tengas permiso para analizar. Si está desactivado, solo se analizan localhost, 127.0.0.1 y ::1."
+        }
+      }
+    },
+    "zh": {
+      "name": "Nuclei Web 漏洞扫描",
+      "description": "用 Nuclei 模板向正在运行的 Web 服务器（targetUrl）发送请求，找出暴露的调试路径、目录列表、服务器配置错误和已知 CVE。默认只扫描 localhost。",
+      "criteria": ["从响应中提取到值", "经真实请求确认", "信息类结果"],
+      "options": {
+        "targetUrl": {
+          "label": "要扫描的服务器地址",
+          "description": "正在运行的自己服务器的地址。留空则跳过此检查。",
+          "placeholder": "http://localhost:3000"
+        },
+        "templates": {
+          "label": "模板范围",
+          "description": "默认只使用模块内置模板，结果始终一致。选择全部会使用 Nuclei 公开模板更广泛地查找配置错误和已知 CVE（首次运行时下载，不含内置模板）。",
+          "choiceLabels": { "bundled": "默认（内置模板，离线）", "all": "全部（Nuclei 公开模板）" }
+        },
+        "severity": {
+          "label": "扫描的严重程度",
+          "description": "只运行所选严重程度的模板。信息是服务器类型、版本等参考结果。",
+          "choiceLabels": { "info": "信息", "low": "低", "medium": "中", "high": "高", "critical": "严重" }
+        },
+        "tags": {
+          "label": "模板标签",
+          "description": "只运行以逗号分隔的标签。留空则按项目自动选择（没有 AI 时为 exposure,misconfig）。",
+          "placeholder": "exposure,misconfig"
+        },
+        "useAiTags": {
+          "label": "用 AI 选择标签",
+          "description": "标签留空且已配置 AI 时，AI 会根据项目信息缩小标签范围。"
+        },
+        "rateLimit": {
+          "label": "每秒最大请求数",
+          "description": "限制请求速度，避免服务器负载过高。",
+          "unit": "次"
+        },
+        "allowRemote": {
+          "label": "允许 localhost 以外的地址",
+          "description": "只对自己拥有或有权测试的服务器开启。关闭时只扫描 localhost、127.0.0.1 和 ::1。"
+        }
+      }
+    }
+  }
 }

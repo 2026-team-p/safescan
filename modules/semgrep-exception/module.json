@@ -1,25 +1,143 @@
 {
   "id": "semgrep-exception",
   "name": "예외 처리 결함 정적 분석 (Semgrep)",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "JavaScript · TypeScript · Python · Java 소스에서 빈 catch, 스택 트레이스의 클라이언트 노출, 인증 · 검증 함수의 오류 시 허용(fail-open) 같은 예외 처리 결함을 Semgrep 규칙으로 찾습니다.",
   "category": "sast",
   "owasp": ["A10:2025"],
   "cwe": ["CWE-390", "CWE-209", "CWE-636"],
   "status": "experimental",
-  "tool": {
-    "name": "Semgrep CE",
-    "homepage": "https://semgrep.dev/docs/",
-    "license": "LGPL-2.1"
-  },
+  "tool": { "name": "Semgrep CE", "homepage": "https://semgrep.dev/docs/", "license": "LGPL-2.1" },
   "requires": [
-    {
-      "bin": "semgrep",
-      "versionArgs": ["--version"],
-      "install": "pip install semgrep (Windows 에서 안 되면 WSL 또는 Docker 를 사용하세요)"
-    }
+    { "bin": "semgrep", "versionArgs": ["--version"], "install": "pip install semgrep (Windows 에서 안 되면 WSL 또는 Docker 를 사용하세요)" }
   ],
   "appliesWhen": { "files": ["*.js", "*.jsx", "*.mjs", "*.cjs", "*.ts", "*.tsx", "*.py", "*.java"] },
   "ai": "none",
-  "timeoutSec": 300
+  "options": {
+    "languages": {
+      "type": "multi",
+      "label": "검사할 언어",
+      "description": "고른 언어의 소스 파일만 검사합니다",
+      "choices": ["javascript", "typescript", "python", "java"],
+      "choiceLabels": { "javascript": "JavaScript", "typescript": "TypeScript", "python": "Python", "java": "Java" },
+      "default": ["javascript", "typescript", "python", "java"]
+    },
+    "checks": {
+      "type": "multi",
+      "label": "찾을 결함",
+      "description": "빈 catch 는 일부러 오류를 무시하는 코드도 잡혀 결과가 많을 수 있습니다. 많으면 빼 보세요",
+      "choices": ["empty-catch", "stack-trace", "fail-open"],
+      "choiceLabels": { "empty-catch": "빈 catch · except (오류 무시)", "stack-trace": "스택 트레이스 노출", "fail-open": "오류 시 허용 (fail-open)" },
+      "default": ["empty-catch", "stack-trace", "fail-open"]
+    },
+    "excludeTests": {
+      "type": "boolean",
+      "label": "테스트 파일 제외",
+      "description": "test · tests · __tests__ · spec · e2e 폴더와 *.test.* · *.spec.* · test_*.py · *Test.java 파일은 검사하지 않습니다",
+      "default": false
+    }
+  },
+  "timeoutSec": 300,
+  "criteria": {
+    "confidence": [
+      { "min": 0.85, "label": "코드 모양으로 확정", "description": "규칙 신뢰도 HIGH — 빈 catch · 스택 트레이스 응답처럼 코드 모양만으로 정해지는 패턴" },
+      { "min": 0.6, "label": "함수 이름으로 추정", "description": "규칙 신뢰도 MEDIUM — fail-open: 함수 이름으로 인증 · 검증 함수를 추정" },
+      { "min": 0.4, "label": "추정", "description": "규칙 신뢰도 LOW 또는 미지정" }
+    ],
+    "accuracy": { "precision": 0.9, "recall": 0.9 }
+  },
+  "i18n": {
+    "en": {
+      "name": "Exception handling static analysis (Semgrep)",
+      "description": "Finds exception handling flaws in JavaScript, TypeScript, Python and Java source with Semgrep rules, such as empty catch blocks, stack traces sent to clients and auth or validation functions that allow access on error (fail-open).",
+      "criteria": ["Decided by code shape", "Estimated from function name", "Estimate"],
+      "options": {
+        "languages": {
+          "label": "Languages to scan",
+          "description": "Only source files of the selected languages are scanned.",
+          "choiceLabels": { "javascript": "JavaScript", "typescript": "TypeScript", "python": "Python", "java": "Java" }
+        },
+        "checks": {
+          "label": "Flaws to find",
+          "description": "Empty catch also flags code that ignores errors on purpose, so it can produce many results. Turn it off if there are too many.",
+          "choiceLabels": {
+            "empty-catch": "Empty catch / except (ignored errors)",
+            "stack-trace": "Stack trace exposure",
+            "fail-open": "Allow on error (fail-open)"
+          }
+        },
+        "excludeTests": {
+          "label": "Exclude test files",
+          "description": "Skips test, tests, __tests__, spec and e2e folders and files such as *.test.*, *.spec.*, test_*.py and *Test.java."
+        }
+      }
+    },
+    "ja": {
+      "name": "例外処理の欠陥の静的解析（Semgrep）",
+      "description": "JavaScript・TypeScript・Python・Java のソースから、空の catch、スタックトレースのクライアントへの露出、認証・検証関数のエラー時の許可（fail-open）などの例外処理の欠陥を Semgrep ルールで検出します。",
+      "criteria": ["コードの形で確定", "関数名から推定", "推定"],
+      "options": {
+        "languages": {
+          "label": "検査する言語",
+          "description": "選んだ言語のソースファイルだけを検査します。",
+          "choiceLabels": { "javascript": "JavaScript", "typescript": "TypeScript", "python": "Python", "java": "Java" }
+        },
+        "checks": {
+          "label": "検出する欠陥",
+          "description": "空の catch はわざとエラーを無視するコードも検出するため、結果が多くなることがあります。多すぎる場合は外してください。",
+          "choiceLabels": { "empty-catch": "空の catch・except（エラーの無視）", "stack-trace": "スタックトレースの露出", "fail-open": "エラー時に許可（fail-open）" }
+        },
+        "excludeTests": {
+          "label": "テストファイルを除外",
+          "description": "test・tests・__tests__・spec・e2e フォルダと、*.test.*・*.spec.*・test_*.py・*Test.java ファイルは検査しません。"
+        }
+      }
+    },
+    "es": {
+      "name": "Análisis estático del manejo de excepciones (Semgrep)",
+      "description": "Encuentra fallos en el manejo de excepciones en código JavaScript, TypeScript, Python y Java con reglas de Semgrep, como bloques catch vacíos, trazas de pila enviadas al cliente y funciones de autenticación o validación que permiten el acceso ante un error (fail-open).",
+      "criteria": ["Determinado por la forma del código", "Estimado por el nombre de la función", "Estimación"],
+      "options": {
+        "languages": {
+          "label": "Lenguajes a analizar",
+          "description": "Solo se analizan los archivos fuente de los lenguajes elegidos.",
+          "choiceLabels": { "javascript": "JavaScript", "typescript": "TypeScript", "python": "Python", "java": "Java" }
+        },
+        "checks": {
+          "label": "Fallos a buscar",
+          "description": "El catch vacío también marca código que ignora errores a propósito, así que puede dar muchos resultados. Desactívalo si son demasiados.",
+          "choiceLabels": {
+            "empty-catch": "catch / except vacío (errores ignorados)",
+            "stack-trace": "Exposición de la traza de pila",
+            "fail-open": "Permitir ante error (fail-open)"
+          }
+        },
+        "excludeTests": {
+          "label": "Excluir archivos de prueba",
+          "description": "Omite las carpetas test, tests, __tests__, spec y e2e, y archivos como *.test.*, *.spec.*, test_*.py y *Test.java."
+        }
+      }
+    },
+    "zh": {
+      "name": "异常处理缺陷静态分析（Semgrep）",
+      "description": "用 Semgrep 规则在 JavaScript、TypeScript、Python、Java 源码中查找空 catch、向客户端泄露堆栈跟踪、认证或校验函数出错时放行（fail-open）等异常处理缺陷。",
+      "criteria": ["由代码形态确定", "根据函数名推测", "推测"],
+      "options": {
+        "languages": {
+          "label": "检查的语言",
+          "description": "只检查所选语言的源文件。",
+          "choiceLabels": { "javascript": "JavaScript", "typescript": "TypeScript", "python": "Python", "java": "Java" }
+        },
+        "checks": {
+          "label": "要查找的缺陷",
+          "description": "空 catch 也会命中故意忽略错误的代码，结果可能很多。太多时可以去掉。",
+          "choiceLabels": { "empty-catch": "空 catch / except（忽略错误）", "stack-trace": "堆栈跟踪泄露", "fail-open": "出错时放行（fail-open）" }
+        },
+        "excludeTests": {
+          "label": "排除测试文件",
+          "description": "不检查 test、tests、__tests__、spec、e2e 文件夹以及 *.test.*、*.spec.*、test_*.py、*Test.java 文件。"
+        }
+      }
+    }
+  }
 }

@@ -8,6 +8,7 @@ import { CommandNotFoundError, runCommand } from '../core/exec.js';
 import { appliesTo, scanProject } from '../core/project.js';
 import { discoverModules, loadModule, PACKAGE_ROOT, scaffoldModule } from '../core/registry.js';
 import { runScan } from '../core/runner.js';
+import { loadSettings, optionsFor } from '../core/settings.js';
 import { CATEGORIES } from '../sdk/index.js';
 import { banner, c, createRenderer, fmtMs, fmtUsd, pad, printIssue, printIssueBoard, printSummary } from './render.js';
 
@@ -213,10 +214,12 @@ async function scan(args) {
     return 0;
   }
 
+  // 화면에서 저장한 모듈 옵션 위에 -o 값을 덮어 씁니다.
+  const saved = (await loadSettings(join(root, '.safescan'))).options;
   const result = await runScan({
     projectRoot: root,
     modules: selected,
-    options: parseModuleOptions(values.option ?? []),
+    options: optionsFor(selected, saved, parseModuleOptions(values.option ?? [])),
     aiProvider: createAiProvider(),
     onEvent: values.json ? undefined : createRenderer({ verbose: values.verbose, idWidth: Math.max(...selected.map((e) => e.id.length)) }),
     storeDir: values['no-save'] ? null : undefined,

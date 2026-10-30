@@ -8,6 +8,8 @@ const IMAGE = 'ghcr.io/zaproxy/zaproxy:stable';
 const ALLOWED_HOSTS = new Set(['localhost', '127.0.0.1', 'host.docker.internal']);
 const SEVERITY = { '3': 'high', '2': 'medium', '1': 'low', '0': 'low' };
 const CONFIDENCE = { '0': 0.1, '1': 0.45, '2': 0.65, '3': 0.85, '4': 0.95 };
+// minRisk 옵션 → ZAP riskcode 최솟값 (0 정보 · 1 낮음 · 2 중간 · 3 높음)
+const MIN_RISK = { info: 0, low: 1, medium: 2, high: 3 };
 
 const KOREAN = {
   '10038': {
@@ -71,6 +73,11 @@ function plainText(value) {
     .replace(/&#39;/g, "'").replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
 }
 
+function riskOf(alert) {
+  const risk = Number(alert.riskcode ?? 0);
+  return Number.isFinite(risk) ? risk : 0;
+}
+
 function parseTarget(input) {
   let url;
   try { url = new URL(input); } catch { throw new Error('올바른 http/https URL을 입력하세요.'); }
@@ -95,19 +102,22 @@ export default defineModule({
       const config = JSON.parse(await ctx.project.readText('.safescan-zap.json'));
       specifiedUrl = String(config.url ?? '').trim();
     }
-    if (!specifiedUrl) ctx.skip('검사 URL이 없습니다. -o owasp-zap.url=http://localhost:5000 으로 지정하세요.');
+    if (!specifiedUrl) ctx.skip('검사할 사이트 주소가 없습니다. 검사 설정에서 주소를 넣으세요 (CLI: -o owasp-zap.url=http://localhost:5000)');
     const mode = String(ctx.options.mode ?? 'baseline');
-    if (!['baseline', 'full'].includes(mode)) throw new Error('검사 모드는 baseline 또는 full이어야 합니다.');
+    if (!['baseline', 'full'].includes(mode)) throw new Error('검사 방식은 baseline 또는 full이어야 합니다.');
+    // 공격 요청은 사용자가 직접 동의해야만 보냅니다. 동의가 없으면 실패가 아니라 건너뜀으로 남깁니다.
     if (mode === 'full' && ctx.options.confirmActive !== true) {
-      throw new Error('Full Scan에는 -o owasp-zap.confirmActive=true 승인이 필요합니다.');
+      ctx.skip('전체 검사(공격 요청 포함)는 \'공격 요청 보내기에 동의\'를 켜야 시작합니다 (CLI: -o owasp-zap.confirmActive=true)');
     }
     const minutes = Number(ctx.options.spiderMinutes ?? 2);
-    if (!Number.isInteger(minutes) || minutes < 0 || minutes > 30) {
-      throw new Error('탐색 시간은 0~30분 사이의 정수여야 합니다.');
+    if (!Number.isInteger(minutes) || minutes < 1 || minutes > 30) {
+      throw new Error('탐색 시간은 1~30분 사이의 정수여야 합니다.');
     }
+    const minRisk = MIN_RISK[String(ctx.options.minRisk ?? 'info')] ?? 0;
+    const ajaxSpider = ctx.options.ajaxSpider === true;
     const url = parseTarget(specifiedUrl);
-    ctx.log.info(`검사 대상 ${url} · 모드 ${mode}`);
-    return { url, mode, spiderMinutes: minutes };
+    ctx.log.info(`검사 대상 ${url} · 모드 ${mode} · 탐색 ${minutes}분${ajaxSpider ? ' (브라우저 탐색 포함)' : ''}`);
+    return { url, mode, spiderMinutes: minutes, ajaxSpider, minRisk };
   },
 
   async tool(ctx, input) {
@@ -134,6 +144,8 @@ export default defineModule({
       '-J', 'zap_raw.json',
       '-r', 'zap_report.html'
     ];
+    // 기본 탐색 외에 브라우저(AJAX Spider)로도 탐색합니다. JavaScript 로 화면을 그리는 SPA 용
+    if (input.ajaxSpider) args.push('-j');
     const result = await ctx.exec('docker', args, {
       okExitCodes: [0, 1, 2], quiet: false
     });
@@ -145,10 +157,16 @@ export default defineModule({
     return { report: raw, zapExitCode: result.code };
   },
 
-  postprocess(ctx, raw) {
+  postprocess(ctx, raw, input) {
     const findings = [];
+    let below = 0;
     for (const site of raw.report.site) {
       for (const alert of site.alerts ?? []) {
+        // minRisk 보다 낮은 위험도의 경고는 뺍니다 (검증 단계에서 수를 맞춰 봅니다).
+        if (riskOf(alert) < input.minRisk) {
+          below += 1;
+          continue;
+        }
         const translated = explain(alert);
         const urls = (alert.instances ?? []).map((item) => item.uri ?? item.url).filter(Boolean);
         const referenceMatches = String(alert.reference ?? '').match(/https?:\/\/[^\s<>"']+/g) ?? [];
@@ -174,20 +192,26 @@ export default defineModule({
             verificationStatus: 'needs_review',
             occurrenceCount: urls.length,
             affectedUrls: urls.slice(0, 20),
-            scanMode: raw.scanMode
+            scanMode: input.mode
           }
         });
       }
     }
+    if (below) ctx.log.info(`최소 위험도 옵션보다 낮은 경고 ${below}건은 뺐습니다`);
     return findings;
   },
 
-  verify(ctx, { raw, findings }) {
-    const groups = raw.report.site.reduce((sum, site) => sum + (site.alerts?.length ?? 0), 0);
+  verify(ctx, { input, raw, findings }) {
+    const alerts = raw.report.site.flatMap((site) => site.alerts ?? []);
+    const below = alerts.filter((alert) => riskOf(alert) < input.minRisk).length;
     const codes = new Set(findings.map((f) => f.fingerprint));
     return {
       checks: [
-        { name: 'ZAP 경고 유형 수 일치', passed: groups === findings.length, detail: `원본 ${groups}건, 변환 ${findings.length}건` },
+        {
+          name: 'ZAP 경고 유형 수 일치',
+          passed: alerts.length === findings.length + below,
+          detail: `원본 ${alerts.length}건 = 변환 ${findings.length}건 + 최소 위험도 미만 ${below}건`
+        },
         { name: '중복 결과 미발생', passed: codes.size === findings.length }
       ],
       notes: [

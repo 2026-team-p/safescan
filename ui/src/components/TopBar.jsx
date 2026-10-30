@@ -42,6 +42,7 @@ export function TopBar({ state, assistant, waitingJobs, tab, onTab, openIssues, 
           <button type="button" className={tab === 'issues' ? 'tab tab-active' : 'tab'} onClick={() => onTab('issues')}>
             {t('tab.issues')} {openIssues > 0 && <span className="tab-count">{openIssues}</span>}
           </button>
+          <button type="button" className={tab === 'history' ? 'tab tab-active' : 'tab'} onClick={() => onTab('history')}>{t('tab.history')}</button>
         </nav>
 
         <div className="topbar-right">

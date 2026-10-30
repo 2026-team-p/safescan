@@ -6,13 +6,16 @@ import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { createAiProvider } from '../core/ai.js';
 import { BENCH_DIR } from '../core/bench.js';
-import { CommandNotFoundError, runCommand } from '../core/exec.js';
+import { CommandNotFoundError, runCommand, versionLine } from '../core/exec.js';
 import { addThreadEntry, findIssue, loadIssues, setIssueStatus, withIssues } from '../core/issues.js';
 import { appliesTo, createProjectApi, scanProject } from '../core/project.js';
 import { discoverModules } from '../core/registry.js';
+import { coerceOption } from '../core/schema.js';
+import { compactOptions, loadSettings, optionsFor, saveSettings } from '../core/settings.js';
 import {
   applyEdits, finalizeProposal, optionInstructions, PATCH_OPTIONS, prepareFile, proposePatch, recommendModules,
 } from './ai-tasks.js';
+import { appendAiJob, createBenchLookup, listRunSummaries, modelStats, readAiJobs, readRun } from './history.js';
 import { JobManager } from './jobs.js';
 import { HttpError, RunManager } from './runs.js';
 
@@ -50,7 +53,38 @@ export function createApi({ projectRoot, modulesDir, aiProvider = createAiProvid
 
   const publish = (event) => bus.emit('event', event);
   const issuesChanged = () => publish({ type: 'issues' });
-  jobs.on('update', (job) => publish({ type: 'job', job }));
+  const loggedJobs = new Set();
+  jobs.on('update', (job) => {
+    publish({ type: 'job', job });
+    if (['done', 'failed', 'cancelled'].includes(job.status) && !loggedJobs.has(job.id)) {
+      loggedJobs.add(job.id);
+      logAiJob(job).catch(() => {});
+    }
+  });
+
+  /** 끝난 AI 작업을 기록 화면용으로 남깁니다: 처리 방식 · 모델 · 토큰 · 비용 · 소요 시간 */
+  async function logAiJob(job) {
+    const calls = job.aiCalls ?? [];
+    const issue = job.issueId ? findIssue(await loadIssues(storeDir), job.issueId) : null;
+    await appendAiJob(storeDir, {
+      jobId: job.id,
+      kind: job.kind,
+      via: job.via,
+      model: calls.length ? calls[calls.length - 1].model : job.via === 'api' ? aiProvider.model : null,
+      client: job.via === 'claude' ? assistant.client : null,
+      status: job.status,
+      createdAt: job.createdAt,
+      finishedAt: job.finishedAt,
+      durationMs: job.durationMs,
+      inputTokens: calls.reduce((a, c) => a + c.inputTokens, 0),
+      outputTokens: calls.reduce((a, c) => a + c.outputTokens, 0),
+      costUsd: Number(calls.reduce((a, c) => a + c.costUsd, 0).toFixed(6)),
+      ...(job.issueId ? { issueId: job.issueId, moduleId: issue?.moduleId, issueTitle: issue?.title } : {}),
+      ...(job.options?.length ? { options: job.options } : {}),
+      ...(job.kind === 'recommend' && job.result?.selected ? { selected: job.result.selected } : {}),
+      ...(job.error ? { error: job.error } : {}),
+    });
+  }
 
   const entries = () => discoverModules(modulesDir);
 
@@ -69,7 +103,7 @@ export function createApi({ projectRoot, modulesDir, aiProvider = createAiProvid
     const results = await Promise.all([...bins.values()].map(async (r) => {
       try {
         const out = await runCommand(r.bin, r.versionArgs ?? ['--version'], { timeoutMs: 20_000 });
-        return /** @type {[string, { ok: boolean, version: string }]} */ ([r.bin, { ok: true, version: (out.stdout || out.stderr).trim().split('\n')[0].slice(0, 60) }]);
+        return /** @type {[string, { ok: boolean, version: string }]} */ ([r.bin, { ok: true, version: versionLine(`${out.stdout}\n${out.stderr}`, 60) }]);
       } catch (err) {
         return /** @type {[string, { ok: boolean, error: string }]} */ ([r.bin, { ok: false, error: err instanceof CommandNotFoundError ? '설치되어 있지 않음' : err.message }]);
       }
@@ -125,14 +159,33 @@ export function createApi({ projectRoot, modulesDir, aiProvider = createAiProvid
     return { profile, modules };
   }
 
+  /** 지난 검사의 이벤트 기록. 마지막에 run:closed 를 붙여 화면이 끝난 검사로 보게 합니다. */
+  async function readSavedEvents(runId) {
+    if (!(await readRun(storeDir, runId))) return null;
+    const text = await readFile(join(storeDir, 'runs', runId, 'events.jsonl'), 'utf8').catch(() => '');
+    const events = text.split('\n').filter(Boolean).flatMap((line) => {
+      try {
+        return [JSON.parse(line)];
+      } catch {
+        return [];
+      }
+    });
+    const last = events[events.length - 1];
+    return [...events, { type: 'run:closed', runId, at: last?.at ?? new Date().toISOString() }];
+  }
+
   async function issueOr404(store, id) {
     const issue = findIssue(store, id);
     if (!issue) throw new HttpError(404, `이슈를 찾을 수 없습니다: ${id}`);
     return issue;
   }
 
-  /** 어디서 시작했든(화면 · 다른 탭 · Claude 의 run_scan) 모든 검사를 화면에 알려 텔레메트리가 따라가게 합니다. */
-  function startScan(modules, options) {
+  /**
+   * 어디서 시작했든(화면 · 다른 탭 · Claude 의 run_scan) 모든 검사를 화면에 알려 텔레메트리가 따라가게 합니다.
+   * 옵션은 저장된 프로젝트 설정 위에 이번 요청 값을 덮어 씁니다.
+   */
+  async function startScan(modules, overrides = {}) {
+    const options = optionsFor(modules, (await loadSettings(storeDir)).options, overrides);
     const runId = runs.start({ modules, options, afterRun: async () => issuesChanged() });
     publish({ type: 'run', runId, kind: 'scan' });
     return runId;
@@ -370,7 +423,7 @@ export function createApi({ projectRoot, modulesDir, aiProvider = createAiProvid
         const ids = modules.filter((m) => m.ready && m.applies.applies).map((m) => m.id);
         list = await Promise.all(ids.map(entryById));
       }
-      const runId = startScan(list, {});
+      const runId = await startScan(list);
       return new Promise((resolve, reject) => {
         let result = null;
         runs.subscribe(runId, 0, (event) => {
@@ -395,7 +448,48 @@ export function createApi({ projectRoot, modulesDir, aiProvider = createAiProvid
         patchOptions: Object.fromEntries(Object.entries(PATCH_OPTIONS).map(([k, v]) => [k, v.label])),
         activeRun: runs.active,
         jobs: jobs.recent(),
+        settings: await loadSettings(storeDir),
       };
+    },
+
+    /** 검사 설정 화면에서 바꾼 모듈 옵션 저장. 기본값과 같은 값은 저장하지 않습니다. */
+    async saveOptions(_req, _url, body) {
+      const entry = await entryById(String(body?.moduleId ?? ''));
+      const given = body?.options && typeof body.options === 'object' ? body.options : {};
+      const specs = entry.manifest.options ?? {};
+      const values = {};
+      const errors = [];
+      for (const [key, raw] of Object.entries(given)) {
+        if (!specs[key]) {
+          errors.push(`${key}: 정의되지 않은 옵션`);
+          continue;
+        }
+        const { value, error } = coerceOption(specs[key], raw);
+        if (error) errors.push(`${specs[key].label}: ${error}`);
+        else values[key] = value;
+      }
+      if (errors.length) throw new HttpError(400, errors.join(' · '));
+      const settings = await loadSettings(storeDir);
+      const compact = compactOptions(entry.manifest, values);
+      if (Object.keys(compact).length) settings.options[entry.id] = compact;
+      else delete settings.options[entry.id];
+      await saveSettings(storeDir, settings);
+      return { moduleId: entry.id, options: compact };
+    },
+
+    /** 기록 화면: 최근 검사 요약 + AI 작업 + 처리 방식 · 모델별 수치 */
+    async history() {
+      const [runList, aiJobs] = await Promise.all([listRunSummaries(storeDir), readAiJobs(storeDir)]);
+      return { runs: runList, aiJobs, models: modelStats(aiJobs) };
+    },
+
+    /** 지난 검사 하나의 전체 결과 (+ 모듈 버전별 최근 벤치 정확도) */
+    async run(_req, _url, _body, params) {
+      const result = await readRun(storeDir, params.id);
+      if (!result) throw new HttpError(404, `검사 기록이 없습니다: ${params.id}`);
+      const benchFor = createBenchLookup();
+      const bench = Object.fromEntries(await Promise.all(result.modules.map(async (m) => [m.moduleId, await benchFor(m.moduleId, m.moduleVersion)])));
+      return { result, bench };
     },
 
     /** 화면 전체가 듣는 이벤트: 작업 진행 · 이슈 변경 · Claude 연결 상태 */
@@ -437,15 +531,22 @@ export function createApi({ projectRoot, modulesDir, aiProvider = createAiProvid
     async startRun(_req, _url, body) {
       const ids = Array.isArray(body?.modules) ? body.modules : [];
       const list = await Promise.all(ids.map(entryById));
-      return { runId: startScan(list, body?.options ?? {}) };
+      return { runId: await startScan(list, body?.options && typeof body.options === 'object' ? body.options : {}) };
     },
 
     /** Server-Sent Events. 이벤트마다 id 를 붙여 재접속 시 이어서 받습니다. */
-    events(req, _url, _body, params, res) {
+    async events(req, _url, _body, params, res) {
       const from = Number(req.headers['last-event-id'] ?? -1) + 1;
-      let unsubscribe = () => {};
+      // 서버가 다시 켜져 메모리에 없는 지난 검사는 저장된 events.jsonl 을 그대로 다시 보냅니다 (기록 화면에서 열 때).
+      const saved = runs.runs.has(params.id) ? null : await readSavedEvents(params.id);
+      if (!runs.runs.has(params.id) && !saved) throw new HttpError(404, `검사 기록이 없습니다: ${params.id}`);
       res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
-      unsubscribe = runs.subscribe(params.id, from, (event, id) => {
+      if (saved) {
+        saved.slice(from).forEach((event, i) => res.write(`id: ${from + i}\ndata: ${JSON.stringify(event)}\n\n`));
+        res.end();
+        return undefined;
+      }
+      const unsubscribe = runs.subscribe(params.id, from, (event, id) => {
         if (event) res.write(`id: ${id}\ndata: ${JSON.stringify(event)}\n\n`);
         else res.end();
       });
@@ -486,6 +587,7 @@ export function createApi({ projectRoot, modulesDir, aiProvider = createAiProvid
       await writeFile(path, patch.proposed);
       patches.delete(params.patchId);
       jobs.markConsumed(patch.jobId, 'accepted');
+      await appendAiJob(storeDir, { jobId: patch.jobId, consumed: 'accepted' }).catch(() => {});
 
       const issue = await withIssues(storeDir, async (store) => {
         const target = await issueOr404(store, patch.issueId);
@@ -495,20 +597,25 @@ export function createApi({ projectRoot, modulesDir, aiProvider = createAiProvid
       });
       issuesChanged();
 
+      const verifyEntry = await entryById(issue.moduleId);
       const runId = runs.start({
-        modules: [await entryById(issue.moduleId)],
+        modules: [verifyEntry],
+        options: optionsFor([verifyEntry], (await loadSettings(storeDir)).options),
+        kind: 'verify',
         afterRun: async (result) => {
           const mod = result.modules[0];
-          await withIssues(storeDir, async (store) => {
+          const outcome = await withIssues(storeDir, async (store) => {
             const target = findIssue(store, patch.issueId);
-            if (!target || target.status === 'resolved') return;
+            if (!target || target.status === 'resolved') return 'resolved';
             const still = mod.status === 'ok';
             const reason = still ? '수정 후 재검사에서도 여전히 발견됩니다' : `재검사를 마치지 못했습니다 (${mod.reason ?? mod.status})`;
             addThreadEntry(target, {
               type: 'verify_failed', actor: 'safescan', runId: result.runId, message: reason,
               data: { reason: still ? 'still_found' : 'incomplete', status: mod.status },
             });
+            return still ? 'still_found' : 'incomplete';
           });
+          await appendAiJob(storeDir, { jobId: patch.jobId, verify: outcome, verifyRunId: result.runId }).catch(() => {});
           issuesChanged();
         },
       });
@@ -521,6 +628,7 @@ export function createApi({ projectRoot, modulesDir, aiProvider = createAiProvid
       patches.delete(params.patchId);
       if (!patch) return { ok: true };
       jobs.markConsumed(patch.jobId, 'rejected');
+      await appendAiJob(storeDir, { jobId: patch.jobId, consumed: 'rejected' }).catch(() => {});
       const issue = await withIssues(storeDir, async (store) => {
         const target = await issueOr404(store, patch.issueId);
         addThreadEntry(target, { type: 'patch_rejected', actor: 'user', message: '수정안을 적용하지 않았습니다' });
@@ -547,6 +655,9 @@ export function createApi({ projectRoot, modulesDir, aiProvider = createAiProvid
       ['POST', /^\/api\/jobs\/(?<id>[0-9a-f]+)\/cancel$/, api.cancelJob],
       ['POST', /^\/api\/runs$/, api.startRun],
       ['GET', /^\/api\/runs\/(?<id>[\w-]+)\/events$/, api.events],
+      ['GET', /^\/api\/runs\/(?<id>[\w-]+)$/, api.run],
+      ['GET', /^\/api\/history$/, api.history],
+      ['POST', /^\/api\/settings\/options$/, api.saveOptions],
       ['GET', /^\/api\/issues$/, api.issues],
       ['POST', /^\/api\/issues\/(?<id>[0-9a-f]+)\/status$/, api.setStatus],
       ['POST', /^\/api\/issues\/(?<id>[0-9a-f]+)\/patch$/, api.requestPatch],

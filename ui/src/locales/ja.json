@@ -1,7 +1,18 @@
 {
-  "lang": { "label": "言語" },
-  "theme": { "label": "表示モード", "system": "システム設定", "light": "ライト", "dark": "ダーク" },
-  "tab": { "scan": "検査", "issues": "イシュー" },
+  "lang": {
+    "label": "言語"
+  },
+  "theme": {
+    "label": "表示モード",
+    "system": "システム設定",
+    "light": "ライト",
+    "dark": "ダーク"
+  },
+  "tab": {
+    "scan": "検査",
+    "issues": "イシュー",
+    "history": "履歴"
+  },
   "assistant": {
     "claude": "Claude 接続中",
     "claudeAuto": "Claude 接続中 · 自動",
@@ -14,7 +25,14 @@
     "waiting": "Claude 待ち {{count}}",
     "waitingTitle": "Claude がまだ受け取っていない作業が {{count}} 件あります。Claude のチャットに「{{request}}」と入力してください"
   },
-  "telemetry": { "aria": "リアルタイムのリソース", "cost": "AI コスト", "time": "経過時間", "confidence": "信頼度", "subscription": "プラン", "subscriptionTitle": "Claude セッション内の作業はプランの使用量として計算されるため、ここではコストを測れません" },
+  "telemetry": {
+    "aria": "リアルタイムのリソース",
+    "cost": "AI コスト",
+    "time": "経過時間",
+    "confidence": "信頼度",
+    "subscription": "プラン",
+    "subscriptionTitle": "Claude セッション内の作業はプランの使用量として計算されるため、ここではコストを測れません"
+  },
   "onboarding": {
     "title": "このディレクトリの package.json · pom.xml を分析しています…",
     "sub": "言語・フレームワーク・パッケージマネージャーを確認し、インストール済みのセキュリティツールを探しています",
@@ -22,9 +40,21 @@
     "retry": "再試行",
     "tokenError": "アクセストークンがないか、変わっています。ターミナルに表示されたアドレスで開き直すか、Claude に「SafeScan を開いて」と頼んでください。"
   },
-  "setup": { "eyebrow": "検査設定", "title": "このプロジェクトに合う検査を選んでください" },
-  "stack": { "languages": "言語", "frameworks": "フレームワーク", "packageManagers": "パッケージマネージャー", "markers": "代表ファイル", "none": "検出なし" },
-  "wand": { "button": "プロジェクトに合わせて検査を自動設定", "busy": "プロジェクトを確認しています…" },
+  "setup": {
+    "eyebrow": "検査設定",
+    "title": "このプロジェクトに合う検査を選んでください"
+  },
+  "stack": {
+    "languages": "言語",
+    "frameworks": "フレームワーク",
+    "packageManagers": "パッケージマネージャー",
+    "markers": "代表ファイル",
+    "none": "検出なし"
+  },
+  "wand": {
+    "button": "プロジェクトに合わせて検査を自動設定",
+    "busy": "プロジェクトを確認しています…"
+  },
   "advice": {
     "claude": "Claude のおすすめ · {{time}}",
     "ai": "AI のおすすめ · {{cost}}",
@@ -46,7 +76,12 @@
     "count": "{{total}} 件中 {{selected}} 件を選択",
     "search": "名前・ツール・OWASP で検索",
     "empty": "条件に合うモジュールがありません",
-    "filter": { "all": "すべて", "applies": "このプロジェクトに該当", "ready": "実行可能", "selected": "選択中" }
+    "filter": {
+      "all": "すべて",
+      "applies": "このプロジェクトに該当",
+      "ready": "実行可能",
+      "selected": "選択中"
+    }
   },
   "module": {
     "applies": "このプロジェクトに該当",
@@ -76,7 +111,10 @@
     "benchSkipped": "直近のベンチは実行されませんでした（{{status}}）",
     "none": "このモジュールは検証基準を定めていません（module.json の criteria）"
   },
-  "fab": { "start": "{{count}} 件のモジュールで検査開始", "empty": "モジュールを選んでください" },
+  "fab": {
+    "start": "{{count}} 件のモジュールで検査開始",
+    "empty": "モジュールを選んでください"
+  },
   "job": {
     "sent": "Claude に送信しました（#{{id}}）",
     "claudeRecommend": "Claude がモジュールを選んでいます…",
@@ -105,10 +143,23 @@
     "findings": "{{count}} 件検出",
     "clean": "問題なし",
     "confidence": "信頼度 {{value}}%",
-    "details": "詳細"
+    "details": "詳細",
+    "eyebrowVerify": "再検査完了"
   },
-  "status": { "pending": "待機", "running": "実行中", "ok": "完了", "skipped": "スキップ", "failed": "失敗", "timeout": "タイムアウト" },
-  "stage": { "preprocess": "前処理", "tool": "ツール", "postprocess": "後処理", "verify": "検証" },
+  "status": {
+    "pending": "待機",
+    "running": "実行中",
+    "ok": "完了",
+    "skipped": "スキップ",
+    "failed": "失敗",
+    "timeout": "タイムアウト"
+  },
+  "stage": {
+    "preprocess": "前処理",
+    "tool": "ツール",
+    "postprocess": "後処理",
+    "verify": "検証"
+  },
   "detail": {
     "close": "閉じる",
     "stages": "段階",
@@ -127,18 +178,47 @@
     "noFindings": "問題は見つかりませんでした",
     "logs": "このモジュールのログ",
     "reason": "理由",
-    "waitingResult": "検査が終わると詳しい結果がここに表示されます"
+    "waitingResult": "検査が終わると詳しい結果がここに表示されます",
+    "accuracy": "精度",
+    "confidenceBands": "信頼度の分布",
+    "options": "使用したオプション",
+    "missed": "見逃した正解",
+    "extra": "正解表にない結果 (誤検出)",
+    "benchNote": "このモジュールバージョンのベンチ結果 ({{date}})。この検査は正解表がないため直接は測定していません",
+    "noAccuracy": "プロジェクトのルートに正解表 safescan.expected.json を置くと、この検査の精度を測定します"
   },
-  "console": { "title": "透明性コンソール", "lines": "{{count}} 行", "follow": "自動スクロール", "waiting": "ログを待っています…", "ai": "AI {{model}} · {{tokens}} tok · {{cost}}" },
+  "console": {
+    "title": "透明性コンソール",
+    "lines": "{{count}} 行",
+    "follow": "自動スクロール",
+    "waiting": "ログを待っています…",
+    "ai": "AI {{model}} · {{tokens}} tok · {{cost}}"
+  },
   "severity": {
-    "critical": "クリティカル", "high": "高", "medium": "中", "low": "低",
+    "critical": "クリティカル",
+    "high": "高",
+    "medium": "中",
+    "low": "低",
     "criticalHint": "今すぐサーバーが侵害されうる致命的な欠陥",
     "highHint": "データ漏えいのおそれ",
     "mediumHint": "推奨セキュリティ設定の不足",
     "lowHint": "コードスメル · 情報"
   },
-  "column": { "discovered": "検出", "in_progress": "対応中", "resolved": "対応済み" },
-  "category": { "sast": "コード解析", "dast": "動的解析", "dependency": "依存関係", "secrets": "シークレット", "config": "設定", "iac": "インフラコード", "container": "コンテナ", "other": "その他" },
+  "column": {
+    "discovered": "検出",
+    "in_progress": "対応中",
+    "resolved": "対応済み"
+  },
+  "category": {
+    "sast": "コード解析",
+    "dast": "動的解析",
+    "dependency": "依存関係",
+    "secrets": "シークレット",
+    "config": "設定",
+    "iac": "インフラコード",
+    "container": "コンテナ",
+    "other": "その他"
+  },
   "board": {
     "emptyTitle": "イシューはまだありません",
     "emptyBody": "検査で見つかった問題がここにカードとして並びます。",
@@ -151,7 +231,9 @@
     "resolvedAt": "対応 {{date}}",
     "items": "{{count}} 件"
   },
-  "issue": { "depTitle": "{{name}}@{{version}} セキュリティ勧告 {{count}} 件" },
+  "issue": {
+    "depTitle": "{{name}}@{{version}} セキュリティ勧告 {{count}} 件"
+  },
   "panel": {
     "aria": "イシューの詳細",
     "status": "状態",
@@ -173,14 +255,30 @@
     "failed": "修正案を取得できませんでした: {{error}}",
     "timeline": "タイムライン"
   },
-  "patchOption": { "stability": "安定性を最優先", "performance": "性能を最優先", "keepStructure": "既存のコード構造を維持", "comments": "コメントを詳しく" },
-  "patch": { "claude": "Claude の提案 · {{time}}", "ai": "AI の提案", "masked": " · シークレット {{count}} 件を伏せ字", "reject": "却下", "accept": "適用して再検査（Accept）" },
+  "patchOption": {
+    "stability": "安定性を最優先",
+    "performance": "性能を最優先",
+    "keepStructure": "既存のコード構造を維持",
+    "comments": "コメントを詳しく"
+  },
+  "patch": {
+    "claude": "Claude の提案 · {{time}}",
+    "ai": "AI の提案",
+    "masked": " · シークレット {{count}} 件を伏せ字",
+    "reject": "却下",
+    "accept": "適用して再検査（Accept）"
+  },
   "verify": {
     "running": "修正したコードを再検査しています",
     "ok": "✅ 再検査に合格 — この問題はもう検出されません",
     "fail": "⚠️ 再検査でもまだ検出されます。オプションを変えて再依頼してください"
   },
-  "actor": { "safescan": "SafeScan", "user": "自分", "ai": "AI", "claude": "Claude" },
+  "actor": {
+    "safescan": "SafeScan",
+    "user": "自分",
+    "ai": "AI",
+    "claude": "Claude"
+  },
   "thread": {
     "detected": "{{module}} モジュールが {{count}} 件を検出しました",
     "changed": "再検査の結果が変わりました: 新規 {{added}} 件、消滅 {{removed}} 件（現在 {{count}} 件）",
@@ -196,5 +294,116 @@
     "verify_incomplete": "再検査を完了できませんでした（{{status}}）",
     "claudeSession": "Claude セッション · {{time}}"
   },
-  "diff": { "changed": "{{count}} 行変更", "before": "既存のコード", "after": "提案コード", "gap": "… 同じ行 {{count}} 行 …" }
+  "diff": {
+    "changed": "{{count}} 行変更",
+    "before": "既存のコード",
+    "after": "提案コード",
+    "gap": "… 同じ行 {{count}} 行 …"
+  },
+  "options": {
+    "title": "オプション",
+    "none": "このモジュールには変更できるオプションがありません",
+    "advanced": "詳細オプション {{count}} 件",
+    "changed": "既定値から {{count}} 件変更",
+    "changedOne": "変更",
+    "changedBadge": "{{count}} 件変更",
+    "reset": "既定値に戻す",
+    "required": "必須",
+    "on": "オン",
+    "off": "オフ",
+    "missing": "{{option}} が必要です — 空のままだとこのモジュールはスキップされます",
+    "error": {
+      "number": "数値を入力してください",
+      "min": "{{min}} 以上にしてください",
+      "max": "{{max}} 以下にしてください",
+      "url": "http:// または https:// で始まるアドレスを入力してください"
+    }
+  },
+  "report": {
+    "title": "検査の指標",
+    "confidence": "平均信頼度",
+    "confidenceSub": "実行された {{count}} モジュールの平均",
+    "accuracy": "精度",
+    "f1": "F1",
+    "precision": "適合率",
+    "recall": "再現率",
+    "byAnswerKey": "{{file}} の正解表に基づく",
+    "byBench": "モジュールのベンチに基づく ({{count}}/{{total}} 測定済み)",
+    "notMeasured": "正解表もベンチ記録もないため測定できません",
+    "findings": "検出",
+    "duration": "所要時間",
+    "modulesRan": "{{total}} 件中 {{ran}} 件を実行",
+    "ai": "AI モデル",
+    "noAi": "未使用",
+    "aiUsage": "呼び出し {{calls}} 回 · {{tokens}} トークン · {{cost}}",
+    "aiIdle": "{{model}} 利用可能 (呼び出しなし)",
+    "aiOff": "モジュール用の AI がありません (API キーなし)",
+    "byModule": "モジュール別の指標",
+    "col": {
+      "module": "モジュール",
+      "status": "状態",
+      "findings": "検出",
+      "confidence": "信頼度",
+      "accuracy": "精度",
+      "duration": "時間",
+      "ai": "AI",
+      "options": "オプション"
+    },
+    "counts": "的中 {{tp}} · 誤検出 {{fp}} · 見逃し {{fn}}",
+    "benchTag": "ベンチ",
+    "optionsChanged": "{{count}} 件変更",
+    "optionsDefault": "既定値",
+    "precisionPartial": "適合率 {{value}} ({{count}}/{{total}} モジュール)"
+  },
+  "history": {
+    "eyebrow": "履歴",
+    "title": "検査と AI 作業の履歴",
+    "sub": "検査ごとに信頼度 · 精度 · 検出数 · 使った AI を比べます。行をクリックするとモジュール別の指標を表示します。",
+    "runs": "検査",
+    "runCount": "{{count}} 回",
+    "noRuns": "まだ検査の履歴がありません",
+    "ai": "AI 作業",
+    "jobCount": "{{count}} 件",
+    "noJobs": "まだ AI 作業の履歴がありません。自動設定や AI 修正を使うとここに記録されます",
+    "recentJobs": "最近の作業",
+    "verify": "再検査",
+    "modulesRan": "{{total}} モジュール中 {{ran}} 件を実行",
+    "answerKey": "正解表",
+    "issues": "イシュー 新規 {{created}} · 解決 {{resolved}} · 未解決 {{open}}",
+    "openRun": "ステップとログを再表示",
+    "byModel": "モデル別の指標",
+    "col": {
+      "model": "処理",
+      "jobs": "依頼",
+      "result": "結果",
+      "patches": "修正案",
+      "resolved": "再検査で解決",
+      "tokens": "トークン",
+      "cost": "費用",
+      "avg": "平均時間"
+    },
+    "via": {
+      "claude": "接続中の Claude セッション",
+      "api": "API キー",
+      "rules": "ルールベース"
+    },
+    "jobsSplit": "推薦 {{recommend}} · 修正案 {{patch}}",
+    "resultSplit": "完了 {{done}} · 失敗 {{failed}} · 取消 {{cancelled}}",
+    "patchSplit": "適用 {{accepted}} · 却下 {{rejected}}",
+    "kind": {
+      "recommend": "モジュール推薦",
+      "patch": "修正案"
+    },
+    "outcome": {
+      "failed": "失敗",
+      "cancelled": "取消",
+      "recommended": "推薦済み",
+      "resolved": "適用 → 解決",
+      "stillFound": "適用 → まだ検出",
+      "incomplete": "適用 → 再検査未完了",
+      "accepted": "適用済み",
+      "rejected": "却下",
+      "proposed": "未確認"
+    }
+  }
 }

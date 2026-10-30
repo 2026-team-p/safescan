@@ -1,41 +1,164 @@
 {
   "id": "trivy-fs",
   "name": "Trivy 파일시스템 통합 검사",
-  "version": "0.1.0",
-  "description": "프로젝트 파일시스템의 알려진 의존성 취약점, Docker/IaC 설정 오류, 비밀정보 노출 징후를 Trivy JSON으로 검사합니다.",
+  "version": "0.2.0",
+  "description": "프로젝트 폴더의 lockfile · Dockerfile · IaC 파일 · 소스를 Trivy 로 검사해 알려진 의존성 취약점, Docker · IaC 설정 오류, 비밀 값 노출을 찾습니다.",
   "category": "other",
-  "owasp": [
-    "A02:2025",
-    "A03:2025"
-  ],
+  "owasp": ["A02:2025", "A03:2025"],
   "status": "experimental",
-  "tool": {
-    "name": "Trivy (Docker image)",
-    "homepage": "https://trivy.dev/",
-    "license": "Apache-2.0"
-  },
+  "tool": { "name": "Trivy (Docker image)", "homepage": "https://trivy.dev/", "license": "Apache-2.0" },
   "requires": [
-    {
-      "bin": "docker",
-      "versionArgs": [
-        "--version"
-      ],
-      "install": "Docker Desktop을 설치하고 엔진을 실행하세요: https://docs.docker.com/desktop/"
-    }
+    { "bin": "docker", "versionArgs": ["--version"], "install": "Docker Desktop을 설치하고 엔진을 실행하세요: https://docs.docker.com/desktop/" }
   ],
   "ai": "none",
   "options": {
-    "scannerSet": {
-      "type": "enum",
-      "label": "검사 영역",
-      "choices": [
-        "all",
-        "vuln",
-        "misconfig",
-        "secret"
-      ],
-      "default": "all"
+    "scanners": {
+      "type": "multi",
+      "label": "검사 항목",
+      "description": "고른 항목만 검사합니다",
+      "choices": ["vuln", "misconfig", "secret"],
+      "choiceLabels": { "vuln": "의존성 취약점", "misconfig": "설정 오류 (Dockerfile · IaC)", "secret": "비밀 값 노출" },
+      "default": ["vuln", "misconfig", "secret"]
+    },
+    "severity": {
+      "type": "multi",
+      "label": "보고할 위험도",
+      "description": "고른 위험도만 결과에 넣습니다. 참고에는 등급을 알 수 없는 결과(UNKNOWN)도 들어갑니다",
+      "choices": ["low", "medium", "high", "critical"],
+      "choiceLabels": { "low": "참고", "medium": "주의", "high": "위험", "critical": "크리티컬" },
+      "default": ["low", "medium", "high", "critical"]
+    },
+    "ignoreUnfixed": {
+      "type": "boolean",
+      "label": "수정 버전이 없는 취약점 제외",
+      "description": "아직 고친 버전이 나오지 않아 지금 올려서 해결할 수 없는 의존성 취약점은 뺍니다",
+      "default": false
+    },
+    "skipDbUpdate": {
+      "type": "boolean",
+      "label": "취약점 DB 업데이트 건너뛰기",
+      "description": "전에 받아 둔 취약점 DB · 설정 규칙으로 바로 검사합니다 (오프라인에서 쓸 때). 받아 둔 DB 가 없으면 검사가 실패합니다",
+      "default": false,
+      "advanced": true
     }
   },
-  "timeoutSec": 900
+  "timeoutSec": 900,
+  "criteria": {
+    "confidence": [
+      { "min": 0.9, "label": "공개 취약점 DB 일치", "description": "설치 버전이 공개 권고(CVE · GHSA)의 범위에 해당" },
+      { "min": 0.8, "label": "설정 규칙 일치", "description": "Dockerfile · IaC 파일이 Trivy 설정 점검 규칙을 어김" },
+      { "min": 0.6, "label": "비밀 값 패턴 (추정)", "description": "비밀 값처럼 보이는 문자열. 실제 값인지 확인 필요" }
+    ],
+    "accuracy": { "recall": 0.9 }
+  },
+  "i18n": {
+    "en": {
+      "name": "Trivy filesystem scan",
+      "description": "Scans lockfiles, Dockerfiles, IaC files and source in the project folder with Trivy to find known dependency vulnerabilities, Docker and IaC misconfigurations, and exposed secrets.",
+      "criteria": ["Public vulnerability DB match", "Configuration rule match", "Secret pattern (heuristic)"],
+      "options": {
+        "scanners": {
+          "label": "What to scan",
+          "description": "Only the selected items are scanned.",
+          "choiceLabels": {
+            "vuln": "Dependency vulnerabilities",
+            "misconfig": "Misconfigurations (Dockerfile, IaC)",
+            "secret": "Exposed secrets"
+          }
+        },
+        "severity": {
+          "label": "Severities to report",
+          "description": "Only the selected severities are included. Low also includes results with an unknown severity (UNKNOWN).",
+          "choiceLabels": { "low": "Low", "medium": "Medium", "high": "High", "critical": "Critical" }
+        },
+        "ignoreUnfixed": {
+          "label": "Exclude vulnerabilities without a fix",
+          "description": "Leaves out dependency vulnerabilities that have no fixed version yet, so they cannot be solved by upgrading now."
+        },
+        "skipDbUpdate": {
+          "label": "Skip vulnerability DB update",
+          "description": "Scans right away with the vulnerability DB and config rules downloaded earlier (for offline use). Fails if no DB has been downloaded yet."
+        }
+      }
+    },
+    "ja": {
+      "name": "Trivy ファイルシステム統合検査",
+      "description": "プロジェクトフォルダの lockfile・Dockerfile・IaC ファイル・ソースを Trivy で検査し、既知の依存関係の脆弱性、Docker・IaC の設定ミス、シークレットの露出を検出します。",
+      "criteria": ["公開脆弱性 DB と一致", "設定ルールと一致", "シークレットのパターン（推定）"],
+      "options": {
+        "scanners": {
+          "label": "検査項目",
+          "description": "選んだ項目だけを検査します。",
+          "choiceLabels": { "vuln": "依存関係の脆弱性", "misconfig": "設定ミス（Dockerfile・IaC）", "secret": "シークレットの露出" }
+        },
+        "severity": {
+          "label": "報告する深刻度",
+          "description": "選んだ深刻度だけを結果に含めます。低には深刻度が不明な結果（UNKNOWN）も含まれます。",
+          "choiceLabels": { "low": "低", "medium": "中", "high": "高", "critical": "クリティカル" }
+        },
+        "ignoreUnfixed": {
+          "label": "修正バージョンのない脆弱性を除外",
+          "description": "まだ修正バージョンが出ておらず、今アップデートしても解決できない依存関係の脆弱性は除きます。"
+        },
+        "skipDbUpdate": {
+          "label": "脆弱性 DB の更新をスキップ",
+          "description": "以前にダウンロードした脆弱性 DB と設定ルールですぐに検査します（オフラインで使うとき）。DB がまだなければ検査は失敗します。"
+        }
+      }
+    },
+    "es": {
+      "name": "Análisis del sistema de archivos con Trivy",
+      "description": "Analiza con Trivy los lockfiles, Dockerfiles, archivos de IaC y el código de la carpeta del proyecto para encontrar vulnerabilidades conocidas en dependencias, configuraciones incorrectas de Docker e IaC y secretos expuestos.",
+      "criteria": ["Coincide con la base de datos pública de vulnerabilidades", "Coincide con una regla de configuración", "Patrón de secreto (heurística)"],
+      "options": {
+        "scanners": {
+          "label": "Qué analizar",
+          "description": "Solo se analizan los elementos elegidos.",
+          "choiceLabels": {
+            "vuln": "Vulnerabilidades de dependencias",
+            "misconfig": "Configuraciones incorrectas (Dockerfile, IaC)",
+            "secret": "Secretos expuestos"
+          }
+        },
+        "severity": {
+          "label": "Gravedades a reportar",
+          "description": "Solo se incluyen las gravedades elegidas. Baja también incluye resultados con gravedad desconocida (UNKNOWN).",
+          "choiceLabels": { "low": "Baja", "medium": "Media", "high": "Alta", "critical": "Crítica" }
+        },
+        "ignoreUnfixed": {
+          "label": "Excluir vulnerabilidades sin corrección",
+          "description": "Omite las vulnerabilidades de dependencias que aún no tienen una versión corregida, por lo que no se pueden resolver actualizando ahora."
+        },
+        "skipDbUpdate": {
+          "label": "Omitir la actualización de la base de datos",
+          "description": "Analiza de inmediato con la base de datos de vulnerabilidades y las reglas descargadas antes (para usar sin conexión). Falla si aún no se ha descargado ninguna."
+        }
+      }
+    },
+    "zh": {
+      "name": "Trivy 文件系统综合检查",
+      "description": "用 Trivy 检查项目文件夹中的 lockfile、Dockerfile、IaC 文件和源码，找出已知依赖漏洞、Docker 与 IaC 配置错误以及密钥泄露。",
+      "criteria": ["命中公开漏洞库", "命中配置规则", "密钥模式（推测）"],
+      "options": {
+        "scanners": {
+          "label": "检查项目",
+          "description": "只检查所选项目。",
+          "choiceLabels": { "vuln": "依赖漏洞", "misconfig": "配置错误（Dockerfile、IaC）", "secret": "密钥泄露" }
+        },
+        "severity": {
+          "label": "报告的严重程度",
+          "description": "只把所选严重程度放入结果。低也包括严重程度未知（UNKNOWN）的结果。",
+          "choiceLabels": { "low": "低", "medium": "中", "high": "高", "critical": "严重" }
+        },
+        "ignoreUnfixed": {
+          "label": "排除没有修复版本的漏洞",
+          "description": "去掉尚无修复版本、现在升级也无法解决的依赖漏洞。"
+        },
+        "skipDbUpdate": {
+          "label": "跳过漏洞库更新",
+          "description": "直接使用之前下载的漏洞库和配置规则检查（离线使用时）。如果还没有下载过漏洞库，检查会失败。"
+        }
+      }
+    }
+  }
 }

@@ -2,10 +2,11 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { meterAi, parseJsonReply } from '../src/core/ai.js';
-import { childEnv } from '../src/core/exec.js';
+import { childEnv, versionLine } from '../src/core/exec.js';
 import { scoreFindings } from '../src/core/bench.js';
 import { appliesTo, compileIgnore, createProjectApi, scanProject } from '../src/core/project.js';
-import { normalizeFinding, resolveOptions, validateManifest } from '../src/core/schema.js';
+import { coerceOption, normalizeFinding, resolveOptions, sanitizeOptions, validateManifest } from '../src/core/schema.js';
+import { compactOptions, optionsFor } from '../src/core/settings.js';
 
 const manifest = {
   id: 'demo', name: '데모', version: '0.1.0', description: '설명', category: 'sast',
@@ -62,9 +63,50 @@ test('resolveOptions: 기본값 · 덮어쓰기 · 타입 검사', () => {
   const m = { id: 'x', options: { level: { type: 'enum', label: 'l', choices: ['a', 'b'], default: 'a' }, n: { type: 'number', label: 'n' } } };
   assert.deepEqual(resolveOptions(m), { level: 'a' });
   assert.deepEqual(resolveOptions(m, { level: 'b', n: 3 }), { level: 'b', n: 3 });
+  assert.deepEqual(resolveOptions(m, { n: '3' }), { level: 'a', n: 3 }, 'CLI 에서 온 숫자 문자열은 숫자로 바꾼다');
   assert.throws(() => resolveOptions(m, { level: 'c' }));
-  assert.throws(() => resolveOptions(m, { n: '3' }));
+  assert.throws(() => resolveOptions(m, { n: 'x' }));
   assert.throws(() => resolveOptions(m, { unknown: true }));
+});
+
+test('validateManifest: 옵션 형식 — 여러 개 고르기 · 범위 · 조건 · 기본값', () => {
+  const options = {
+    url: { type: 'string', label: '주소', format: 'url', required: true, placeholder: 'http://localhost:3000' },
+    levels: { type: 'multi', label: '위험도', choices: ['low', 'high'], default: ['low', 'high'], choiceLabels: { low: '낮음' } },
+    mode: { type: 'enum', label: '모드', choices: ['safe', 'full'], default: 'safe' },
+    confirm: { type: 'boolean', label: '승인', default: false, when: { mode: 'full' } },
+    minutes: { type: 'number', label: '시간', default: 2, min: 1, max: 10, unit: '분', advanced: true },
+  };
+  assert.deepEqual(validateManifest({ ...manifest, options }, 'demo'), []);
+  const bad = validateManifest({
+    ...manifest,
+    options: {
+      levels: { type: 'multi', label: '위험도', choices: ['low'], default: ['nope'] },
+      minutes: { type: 'number', label: '시간', default: 20, max: 10 },
+      flag: { type: 'boolean', label: '켜기', when: { missing: true }, min: 1 },
+      name: { type: 'string', label: '이름', format: 'email' },
+    },
+  }, 'demo');
+  for (const part of ['levels.default', 'minutes.default', 'flag.when.missing', 'flag.min', 'name.format']) {
+    assert.ok(bad.some((e) => e.includes(part)), `${part} 오류가 있어야 합니다: ${bad.join(' / ')}`);
+  }
+});
+
+test('coerceOption · sanitizeOptions: CLI 문자열을 바꾸고, 오래된 저장 값은 버린다', () => {
+  const multi = { type: 'multi', label: 'm', choices: ['info', 'low', 'high'] };
+  assert.deepEqual(coerceOption(multi, 'high, info').value, ['info', 'high'], '선택지 순서로 정리');
+  assert.match(coerceOption(multi, ['x']).error, /x/);
+  assert.equal(coerceOption({ type: 'boolean', label: 'b' }, 'false').value, false);
+  assert.match(coerceOption({ type: 'number', label: 'n', min: 1 }, 0).error, /1 이상/);
+  const url = { type: 'string', label: 'u', format: 'url' };
+  assert.equal(coerceOption(url, ' http://127.0.0.1:4000 ').value, 'http://127.0.0.1:4000');
+  assert.equal(coerceOption(url, '').value, '', '빈 값은 허용 (모듈이 건너뜀)');
+  assert.ok(coerceOption(url, 'ftp://x').error);
+
+  const m = { id: 'x', options: { a: { type: 'number', label: 'a', default: 1 }, b: { type: 'enum', label: 'b', choices: ['y'] } } };
+  assert.deepEqual(sanitizeOptions(m, { a: '5', b: 'gone', old: 1 }), { options: { a: 5 }, dropped: ['b', 'old'] });
+  assert.deepEqual(compactOptions(m, { a: 1, b: 'y' }), { b: 'y' }, '기본값과 같은 값은 저장하지 않음');
+  assert.deepEqual(optionsFor([{ id: 'x', manifest: m }], { x: { a: 5, old: 1 } }, { x: { b: 'y' } }), { x: { a: 5, b: 'y' } });
 });
 
 test('scoreFindings: 정밀도 · 재현율 계산과 줄 번호 허용 범위', () => {
@@ -130,6 +172,12 @@ test('childEnv: Windows 에서는 PATH 항목의 따옴표를 빼 cmd.exe 가 �
   if (process.platform === 'win32') assert.equal(env[pathKey], 'C:\\a;C:\\Program Files\\dotnet;C:\\npm');
   else assert.equal(env.PATH, 'C:\\a;C:\\Program Files\\dotnet";;C:\\npm');
   assert.equal(env.EXTRA, '1');
+});
+
+test('versionLine: 색 코드와 안내 줄을 빼고 버전이 있는 줄을 고른다', () => {
+  assert.equal(versionLine('[\x1b[34mINF\x1b[0m] Nuclei Cache Directory: C:\\x\\nuclei\n[\x1b[34mINF\x1b[0m] Nuclei Engine Version: v3.11.1'), 'Nuclei Engine Version: v3.11.1');
+  assert.equal(versionLine('8.30.1\n'), '8.30.1');
+  assert.equal(versionLine('ok'), 'ok');
 });
 
 test('parseJsonReply: 코드 블록 · 앞뒤 설명이 있어도 읽는다', () => {

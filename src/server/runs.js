@@ -23,10 +23,10 @@ export class RunManager {
 
   /**
    * 검사를 시작하고 runId 를 바로 돌려줍니다. 끝나면 afterRun 을 실행한 뒤 'run:closed' 를 보냅니다.
-   * @param {{ modules: import('../core/registry.js').ModuleEntry[], options?: object,
+   * @param {{ modules: import('../core/registry.js').ModuleEntry[], options?: object, kind?: 'scan' | 'verify',
    *           afterRun?: (result: import('../sdk/types.js').RunResult) => Promise<void> }} p
    */
-  start({ modules, options, afterRun }) {
+  start({ modules, options, kind = 'scan', afterRun }) {
     if (this.active) throw new HttpError(409, '이미 검사가 진행 중입니다');
     if (!modules.length) throw new HttpError(400, '실행할 모듈을 골라 주세요');
 
@@ -39,7 +39,7 @@ export class RunManager {
       for (const listener of record.listeners) listener(event, record.events.length - 1);
     };
 
-    runScan({ projectRoot: this.projectRoot, modules, options, aiProvider: this.aiProvider, runId, onEvent: push })
+    runScan({ projectRoot: this.projectRoot, modules, options, kind, aiProvider: this.aiProvider, runId, onEvent: push })
       .then(async (result) => afterRun?.(result))
       .catch((err) => push({ type: 'run:error', runId, at: new Date().toISOString(), message: err.message }))
       .finally(() => {

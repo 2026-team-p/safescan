@@ -1,5 +1,31 @@
 import { useTranslation } from 'react-i18next';
-import { SEVERITY_ICON } from '../lib/format.js';
+import { SEVERITY_ICON, SEVERITY_ORDER } from '../lib/format.js';
+
+/** 0~1 값 하나를 막대로. 바탕은 같은 색의 옅은 단계입니다. */
+export function Meter({ value, label }) {
+  if (value == null) return <span className="meter meter-empty" aria-hidden />;
+  return (
+    <span className="meter" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(value * 100)} aria-label={label}>
+      <span style={{ width: value > 0 ? `${Math.max(2, Math.min(100, value * 100))}%` : 0 }} />
+    </span>
+  );
+}
+
+/** 위험도별 개수. 색 점은 보조이고 이름 · 숫자를 함께 씁니다. */
+export function SeverityChips({ counts }) {
+  const { t } = useTranslation();
+  const list = SEVERITY_ORDER.filter((s) => (counts?.[s] ?? 0) > 0);
+  if (!list.length) return <span className="muted">—</span>;
+  return (
+    <span className="sev-chips">
+      {list.map((s) => (
+        <span key={s} className="sev-chip" title={t(`severity.${s}Hint`)}>
+          <span className={`sev-swatch sev-swatch-${s}`} aria-hidden />{t(`severity.${s}`)} <strong>{counts[s]}</strong>
+        </span>
+      ))}
+    </span>
+  );
+}
 
 export function Toggle({ checked, onChange, disabled, label }) {
   return (

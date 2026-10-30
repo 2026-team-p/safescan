@@ -1,29 +1,228 @@
 {
   "id": "owasp-zap",
   "name": "OWASP ZAP 웹사이트 동적 보안 검사",
-  "version": "0.1.0",
-  "description": "사용자가 명시적으로 지정한 로컬 웹사이트에서 ZAP Baseline 또는 승인된 Full Scan을 수행하고 보안 설정 누락 및 웹 취약점을 탐지합니다.",
+  "version": "0.2.0",
+  "description": "사용자가 지정한 로컬 웹사이트를 OWASP ZAP 으로 둘러보며 보안 헤더 누락 · 쿠키 설정 같은 보안 설정 문제를 찾습니다. 승인하면 XSS · SQL 인젝션 같은 공격 요청을 보내는 전체 검사(Full Scan)도 합니다.",
   "category": "dast",
   "owasp": ["A02:2025", "A05:2025"],
   "status": "experimental",
-  "tool": {
-    "name": "OWASP ZAP",
-    "homepage": "https://www.zaproxy.org/",
-    "license": "Apache-2.0"
-  },
+  "tool": { "name": "OWASP ZAP", "homepage": "https://www.zaproxy.org/", "license": "Apache-2.0" },
   "requires": [
-    {
-      "bin": "docker",
-      "versionArgs": ["--version"],
-      "install": "Docker Desktop을 설치하고 Docker 엔진을 실행하세요."
-    }
+    { "bin": "docker", "versionArgs": ["--version"], "install": "Docker Desktop을 설치하고 Docker 엔진을 실행하세요." }
   ],
   "ai": "none",
   "options": {
-    "url": { "type": "string", "label": "검사 대상 URL", "default": "", "description": "본인의 로컬 테스트 사이트 (예: http://localhost:5000)" },
-    "mode": { "type": "enum", "label": "검사 모드", "choices": ["baseline", "full"], "default": "baseline" },
-    "confirmActive": { "type": "boolean", "label": "능동 검사 승인", "default": false },
-    "spiderMinutes": { "type": "number", "label": "탐색 시간(분)", "default": 2 }
+    "url": {
+      "type": "string",
+      "label": "검사할 사이트 주소",
+      "description": "실행 중인 내 로컬 테스트 사이트의 주소입니다. localhost · 127.0.0.1 만 검사하며, Docker 안에서는 host.docker.internal 로 바꿔 접속합니다",
+      "placeholder": "http://localhost:5000",
+      "format": "url",
+      "required": true,
+      "default": ""
+    },
+    "mode": {
+      "type": "enum",
+      "label": "검사 방식",
+      "description": "기본 검사는 사이트를 둘러보며 응답만 살핍니다. 전체 검사는 XSS · SQL 인젝션 같은 공격 요청을 실제로 보내므로 데이터가 바뀌거나 지워질 수 있습니다",
+      "choices": ["baseline", "full"],
+      "choiceLabels": { "baseline": "기본 (요청만 관찰)", "full": "전체 (공격 요청 포함)" },
+      "default": "baseline"
+    },
+    "confirmActive": {
+      "type": "boolean",
+      "label": "공격 요청 보내기에 동의",
+      "description": "내 소유의 격리된 테스트 환경이고 데이터가 바뀌어도 괜찮을 때만 켜세요. 켜지 않으면 전체 검사를 시작하지 않습니다",
+      "default": false,
+      "when": { "mode": "full" }
+    },
+    "ajaxSpider": {
+      "type": "boolean",
+      "label": "브라우저로 화면 탐색 (SPA)",
+      "description": "React · Vue 처럼 JavaScript 로 화면을 그리는 사이트에서 링크를 더 잘 찾습니다. 검사 시간이 늘어납니다",
+      "default": false
+    },
+    "minRisk": {
+      "type": "enum",
+      "label": "보고할 최소 위험도",
+      "description": "ZAP 경고 중 이보다 낮은 위험도는 결과에서 뺍니다. 정보는 취약점이 아닌 참고 사항입니다",
+      "choices": ["info", "low", "medium", "high"],
+      "choiceLabels": { "info": "정보 포함 (전체)", "low": "참고 이상", "medium": "주의 이상", "high": "위험만" },
+      "default": "info"
+    },
+    "spiderMinutes": {
+      "type": "number",
+      "label": "탐색 시간",
+      "description": "링크를 따라가며 페이지를 찾는 최대 시간입니다. 페이지가 많은 사이트라면 늘리세요",
+      "default": 2,
+      "min": 1,
+      "max": 30,
+      "step": 1,
+      "unit": "분",
+      "advanced": true
+    }
   },
-  "timeoutSec": 1800
+  "timeoutSec": 1800,
+  "criteria": {
+    "confidence": [
+      { "min": 0.95, "label": "확인됨", "description": "ZAP 신뢰도 Confirmed — 사람이 확인한 경고" },
+      { "min": 0.85, "label": "ZAP 신뢰도 높음", "description": "ZAP 신뢰도 High" },
+      { "min": 0.65, "label": "ZAP 신뢰도 보통", "description": "ZAP 신뢰도 Medium. 헤더 누락 경고 대부분" },
+      { "min": 0.45, "label": "ZAP 신뢰도 낮음", "description": "ZAP 신뢰도 Low, 또는 신뢰도 정보가 없음" },
+      { "min": 0, "label": "오탐으로 표시됨", "description": "ZAP 신뢰도 False Positive" }
+    ],
+    "accuracy": { "recall": 0.9 }
+  },
+  "i18n": {
+    "en": {
+      "name": "OWASP ZAP dynamic website scan",
+      "description": "Crawls a local website you specify with OWASP ZAP to find security setting problems such as missing security headers and cookie flags. With your approval, it also runs a full scan that sends attack requests such as XSS and SQL injection.",
+      "criteria": ["Confirmed", "ZAP confidence high", "ZAP confidence medium", "ZAP confidence low", "Marked as false positive"],
+      "options": {
+        "url": {
+          "label": "Site URL to scan",
+          "description": "The address of your running local test site. Only localhost and 127.0.0.1 are allowed; inside Docker it is reached as host.docker.internal.",
+          "placeholder": "http://localhost:5000"
+        },
+        "mode": {
+          "label": "Scan type",
+          "description": "Baseline crawls the site and only inspects responses. Full actually sends attack requests such as XSS and SQL injection, so data may be changed or deleted.",
+          "choiceLabels": { "baseline": "Baseline (observe only)", "full": "Full (includes attack requests)" }
+        },
+        "confirmActive": {
+          "label": "I agree to send attack requests",
+          "description": "Turn on only for an isolated test environment you own where data changes are acceptable. The full scan will not start without it."
+        },
+        "ajaxSpider": {
+          "label": "Crawl with a browser (SPA)",
+          "description": "Finds more links on sites that render pages with JavaScript, such as React or Vue. Makes the scan take longer."
+        },
+        "minRisk": {
+          "label": "Minimum risk to report",
+          "description": "ZAP alerts below this risk are left out of the results. Informational alerts are notes, not vulnerabilities.",
+          "choiceLabels": {
+            "info": "Include informational (all)",
+            "low": "Low and above",
+            "medium": "Medium and above",
+            "high": "High only"
+          }
+        },
+        "spiderMinutes": {
+          "label": "Crawl time",
+          "description": "Maximum time spent following links to find pages. Increase it for sites with many pages.",
+          "unit": "min"
+        }
+      }
+    },
+    "ja": {
+      "name": "OWASP ZAP Web サイト動的セキュリティ検査",
+      "description": "指定したローカル Web サイトを OWASP ZAP で巡回し、セキュリティヘッダーの欠落や Cookie 設定などのセキュリティ設定の問題を検出します。承認すると XSS や SQL インジェクションなどの攻撃リクエストを送る完全検査（Full Scan）も行います。",
+      "criteria": ["確認済み", "ZAP 信頼度：高", "ZAP 信頼度：中", "ZAP 信頼度：低", "誤検知として表示"],
+      "options": {
+        "url": {
+          "label": "検査するサイトのアドレス",
+          "description": "実行中の自分のローカルテストサイトのアドレスです。localhost・127.0.0.1 のみ検査し、Docker 内からは host.docker.internal に置き換えて接続します。",
+          "placeholder": "http://localhost:5000"
+        },
+        "mode": {
+          "label": "検査方式",
+          "description": "基本検査はサイトを巡回してレスポンスだけを確認します。完全検査は XSS や SQL インジェクションなどの攻撃リクエストを実際に送るため、データが変更・削除される可能性があります。",
+          "choiceLabels": { "baseline": "基本（リクエストを観察のみ）", "full": "完全（攻撃リクエストを含む）" }
+        },
+        "confirmActive": {
+          "label": "攻撃リクエストの送信に同意",
+          "description": "自分が所有する隔離されたテスト環境で、データが変わっても問題ない場合のみオンにしてください。オンにしないと完全検査は始まりません。"
+        },
+        "ajaxSpider": {
+          "label": "ブラウザで画面を巡回（SPA）",
+          "description": "React や Vue のように JavaScript で画面を描くサイトでリンクをより多く見つけます。検査時間が長くなります。"
+        },
+        "minRisk": {
+          "label": "報告する最低のリスク",
+          "description": "これより低いリスクの ZAP アラートは結果から除きます。情報は脆弱性ではなく参考情報です。",
+          "choiceLabels": { "info": "情報を含む（すべて）", "low": "低以上", "medium": "中以上", "high": "高のみ" }
+        },
+        "spiderMinutes": {
+          "label": "巡回時間",
+          "description": "リンクをたどってページを探す最大時間です。ページが多いサイトでは増やしてください。",
+          "unit": "分"
+        }
+      }
+    },
+    "es": {
+      "name": "Análisis dinámico de sitios web con OWASP ZAP",
+      "description": "Recorre con OWASP ZAP un sitio web local que indiques para encontrar problemas de configuración de seguridad, como cabeceras de seguridad o atributos de cookies que faltan. Con tu aprobación, también ejecuta un análisis completo que envía peticiones de ataque como XSS e inyección SQL.",
+      "criteria": ["Confirmado", "Confianza de ZAP alta", "Confianza de ZAP media", "Confianza de ZAP baja", "Marcado como falso positivo"],
+      "options": {
+        "url": {
+          "label": "URL del sitio a analizar",
+          "description": "La dirección de tu sitio de prueba local en ejecución. Solo se permiten localhost y 127.0.0.1; dentro de Docker se accede como host.docker.internal.",
+          "placeholder": "http://localhost:5000"
+        },
+        "mode": {
+          "label": "Tipo de análisis",
+          "description": "El básico recorre el sitio y solo inspecciona las respuestas. El completo envía de verdad peticiones de ataque como XSS e inyección SQL, así que los datos pueden cambiar o borrarse.",
+          "choiceLabels": { "baseline": "Básico (solo observa)", "full": "Completo (incluye peticiones de ataque)" }
+        },
+        "confirmActive": {
+          "label": "Acepto enviar peticiones de ataque",
+          "description": "Actívalo solo en un entorno de pruebas aislado que sea tuyo y donde no importe que cambien los datos. Sin esto, el análisis completo no empieza."
+        },
+        "ajaxSpider": {
+          "label": "Recorrer con navegador (SPA)",
+          "description": "Encuentra más enlaces en sitios que dibujan las páginas con JavaScript, como React o Vue. El análisis tarda más."
+        },
+        "minRisk": {
+          "label": "Riesgo mínimo a reportar",
+          "description": "Las alertas de ZAP por debajo de este riesgo no se incluyen en los resultados. Las informativas son notas, no vulnerabilidades.",
+          "choiceLabels": {
+            "info": "Incluir informativas (todas)",
+            "low": "Bajo o superior",
+            "medium": "Medio o superior",
+            "high": "Solo alto"
+          }
+        },
+        "spiderMinutes": {
+          "label": "Tiempo de rastreo",
+          "description": "Tiempo máximo para seguir enlaces y encontrar páginas. Auméntalo en sitios con muchas páginas.",
+          "unit": "min"
+        }
+      }
+    },
+    "zh": {
+      "name": "OWASP ZAP 网站动态安全检查",
+      "description": "用 OWASP ZAP 浏览你指定的本地网站，找出缺少安全响应头、Cookie 设置不当等安全配置问题。经你同意后，还会进行发送 XSS、SQL 注入等攻击请求的完整扫描（Full Scan）。",
+      "criteria": ["已确认", "ZAP 可信度高", "ZAP 可信度中", "ZAP 可信度低", "标记为误报"],
+      "options": {
+        "url": {
+          "label": "要检查的网站地址",
+          "description": "正在运行的本地测试网站地址。只允许 localhost 和 127.0.0.1，在 Docker 内会改为 host.docker.internal 访问。",
+          "placeholder": "http://localhost:5000"
+        },
+        "mode": {
+          "label": "检查方式",
+          "description": "基础检查只浏览网站并查看响应。完整检查会真实发送 XSS、SQL 注入等攻击请求，数据可能被修改或删除。",
+          "choiceLabels": { "baseline": "基础（仅观察请求）", "full": "完整（包含攻击请求）" }
+        },
+        "confirmActive": {
+          "label": "同意发送攻击请求",
+          "description": "仅在自己拥有、数据被修改也无妨的隔离测试环境中开启。不开启则不会开始完整检查。"
+        },
+        "ajaxSpider": {
+          "label": "用浏览器浏览页面（SPA）",
+          "description": "在 React、Vue 等用 JavaScript 渲染页面的网站上能找到更多链接。检查时间会变长。"
+        },
+        "minRisk": {
+          "label": "报告的最低风险",
+          "description": "低于此风险的 ZAP 警告不计入结果。信息类只是参考，不是漏洞。",
+          "choiceLabels": { "info": "包含信息类（全部）", "low": "低及以上", "medium": "中及以上", "high": "仅高" }
+        },
+        "spiderMinutes": {
+          "label": "爬取时间",
+          "description": "沿链接查找页面的最长时间。页面多的网站可调大。",
+          "unit": "分钟"
+        }
+      }
+    }
+  }
 }

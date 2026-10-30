@@ -108,6 +108,18 @@ export function childEnv(extra = {}) {
   return env;
 }
 
+const ANSI = /\x1b\[[0-9;?]*[ -/]*[@-~]/g;
+
+/**
+ * 버전 확인 명령의 출력에서 버전 한 줄만 뽑습니다. 색 코드를 지우고, 앞에 붙는 안내 줄보다 버전 숫자가 있는 줄을 고릅니다.
+ * 예: nuclei -version → "[INF] Nuclei Engine Version: v3.11.1"
+ */
+export function versionLine(output, max = 80) {
+  const lines = String(output ?? '').replace(ANSI, '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const line = lines.find((l) => /\d+\.\d+/.test(l)) ?? lines[0] ?? '';
+  return line.replace(/^\[\w+\]\s*/, '').slice(0, max);
+}
+
 // Windows 에서 .cmd 는 cmd.exe 를 거쳐 실행되므로 자식 프로세스까지 함께 끝내야 합니다.
 function killTree(child) {
   if (child.exitCode !== null || !child.pid) return;

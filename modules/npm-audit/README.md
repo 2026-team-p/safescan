@@ -14,17 +14,19 @@ OWASP A03:2025 (Software Supply Chain Failures).
 | 단계 | 하는 일 | AI |
 |---|---|---|
 | 전처리 | lockfile 찾기, 설치 버전 · 줄 번호 미리 추출 (npm audit 결과에는 없음) | 없음 |
-| 툴 | lockfile 마다 `npm audit --json --package-lock-only` | - |
-| 후처리 | 권고 1건 = Finding 1건. severity `moderate`→`medium`, `info`→`low` | 없음 |
-| 검증 | npm 이 보고한 취약 패키지 수와 결과 패키지 수 비교 | 없음 |
+| 툴 | lockfile 마다 `npm audit --json --package-lock-only` (`omitDev` 이면 `--omit=dev`) | - |
+| 후처리 | 권고 1건 = Finding 1건. severity `moderate`→`medium`, `info`→`low`. `minSeverity` · `directOnly` 에 맞지 않는 권고는 뺌 | 없음 |
+| 검증 | npm 이 보고한 취약 패키지 수(옵션으로 고른 범위)와 결과 패키지 수 비교 | 없음 |
 
 ## 옵션
 | 키 | 타입 | 기본 | 설명 |
 |---|---|---|---|
+| `minSeverity` | enum `low` · `medium` · `high` · `critical` | `low` | 보고할 최소 위험도 (SafeScan 위험도 기준, `moderate` = `medium`). `npm audit --audit-level` 은 종료 코드만 바꾸므로 후처리에서 거릅니다 |
 | `omitDev` | boolean | false | devDependencies 제외 (`--omit=dev`) |
+| `directOnly` | boolean | false | `package.json` 에 직접 적은 패키지(`isDirect`)의 권고만. 다른 패키지를 거쳐 설치된 패키지의 권고는 뺌 |
 
 ```bash
-safescan scan ./my-app -m npm-audit -o npm-audit.omitDev=true
+safescan scan ./my-app -m npm-audit -o npm-audit.omitDev=true -o npm-audit.minSeverity=high
 ```
 
 ## 신뢰도 기준
@@ -35,6 +37,7 @@ safescan scan ./my-app -m npm-audit -o npm-audit.omitDev=true
 - 중첩 설치(`node_modules/a/node_modules/b`)의 버전은 최상위 버전으로 표시됩니다.
 - yarn · pnpm lockfile 은 지원하지 않습니다 (별도 모듈로 만드는 것을 권장).
 - 오프라인에서는 실패합니다.
+- `directOnly` 를 켜면 간접 의존성의 권고가 모두 빠집니다. 그중에는 직접 의존성을 올려야 해결되는 것도 있으니, 배포 전에는 한 번 끄고 확인하세요.
 
 ## 벤치
 `fixtures/vulnerable` 에 `lodash@4.17.20`, `minimist@1.2.5` 를 고정해 두었습니다.

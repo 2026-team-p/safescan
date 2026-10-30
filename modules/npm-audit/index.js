@@ -2,6 +2,7 @@
 import { defineModule } from 'safescan/sdk';
 
 const SEVERITY = { critical: 'critical', high: 'high', moderate: 'medium', low: 'low', info: 'low' };
+const RANK = { low: 0, medium: 1, high: 2, critical: 3 };
 const TOP_LEVEL_KEY = /^\s*"(node_modules\/(?:@[^/"]+\/)?[^/"]+)":\s*\{/;
 
 export default defineModule({
@@ -45,9 +46,10 @@ export default defineModule({
     return reports;
   },
 
-  // 3) 후처리: 보안 권고 1건 = Finding 1건
+  // 3) 후처리: 보안 권고 1건 = Finding 1건. 최소 위험도 · 직접 의존성 옵션에 맞지 않는 권고는 뺍니다.
   postprocess(ctx, reports, { targets }) {
     const findings = [];
+    let skipped = 0;
     for (const { file, report } of reports) {
       const target = targets.find((t) => t.file === file);
       for (const vuln of Object.values(report.vulnerabilities ?? {})) {
@@ -56,6 +58,10 @@ export default defineModule({
         for (const via of vuln.via) {
           // 문자열은 "다른 패키지를 거쳐 들어온 취약점" 표시입니다. 원인 패키지 항목에서 따로 보고됩니다.
           if (typeof via === 'string') continue;
+          if (!wanted(ctx.options, vuln, via)) {
+            skipped += 1;
+            continue;
+          }
           findings.push({
             ruleId: via.url?.match(/GHSA-[\w-]+$/)?.[0] ?? `npm-${via.source}`,
             title: via.title,
@@ -76,6 +82,7 @@ export default defineModule({
         }
       }
     }
+    if (skipped) ctx.log.info(`옵션(최소 위험도 · 직접 의존성)에 맞지 않는 권고 ${skipped}건은 뺐습니다`);
     return findings;
   },
 
@@ -83,13 +90,19 @@ export default defineModule({
   verify(ctx, { raw, findings }) {
     const checks = raw.map(({ file, report }) => {
       const expected = Object.values(report.vulnerabilities ?? {})
-        .filter((v) => v.via.some((x) => typeof x === 'object')).length;
+        .filter((v) => v.via.some((x) => typeof x === 'object' && wanted(ctx.options, v, x))).length;
       const actual = new Set(findings.filter((f) => f.location?.file === file).map((f) => f.dependency?.name)).size;
       return { name: `${file} 패키지 수 일치`, passed: expected === actual, detail: `npm ${expected}개 / 결과 ${actual}개` };
     });
     return { checks, notes: ['도달 가능성(실제 호출 여부)은 확인하지 않습니다'] };
   },
 });
+
+/** 옵션으로 고른 범위의 권고인지: 최소 위험도 이상이고, directOnly 면 package.json 에 직접 적은 패키지 */
+function wanted(options, vuln, via) {
+  if (options.directOnly && !vuln.isDirect) return false;
+  return RANK[SEVERITY[via.severity] ?? 'low'] >= (RANK[options.minSeverity] ?? 0);
+}
 
 /** lockfile v2/v3 는 packages, v1 은 dependencies 에서 최상위 설치 버전을 읽습니다. */
 function installedVersions(lock) {

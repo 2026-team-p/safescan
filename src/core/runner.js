@@ -8,10 +8,11 @@ import { SEVERITIES } from '../sdk/index.js';
 import { createAiProvider } from './ai.js';
 import { createContext, SkipSignal } from './context.js';
 import { syncIssueStore } from './issues.js';
-import { CommandNotFoundError, CommandTimeoutError, runCommand } from './exec.js';
+import { CommandNotFoundError, CommandTimeoutError, runCommand, versionLine } from './exec.js';
 import { createProjectApi, scanProject } from './project.js';
 import { loadModule } from './registry.js';
 import { normalizeFinding, resolveOptions } from './schema.js';
+import { readProjectExpected, scoreFindings } from './scoring.js';
 
 const DEFAULT_TIMEOUT_SEC = 300;
 
@@ -33,11 +34,12 @@ class ModuleTimeoutError extends Error {
  * @param {boolean} [p.strict]   true 면 잘못된 Finding 이 하나라도 있으면 모듈 실패 (bench · check 용)
  * @param {string|null} [p.storeDir]  결과 · 이슈 저장 위치. 기본 <projectRoot>/.safescan, null 이면 저장 안 함
  * @param {string} [p.runId]     미리 정한 실행 ID (UI 가 이벤트를 구독하려고 먼저 받아 갈 때)
+ * @param {'scan' | 'verify'} [p.kind]  verify: 수정안 적용 뒤 재검사
  * @returns {Promise<import('../sdk/types.js').RunResult & { savedTo?: string }>}
  */
 export async function runScan({
   projectRoot, modules, options = {}, concurrency = 3, aiProvider = createAiProvider(),
-  onEvent = () => {}, strict = false, storeDir, runId = newRunId(),
+  onEvent = () => {}, strict = false, storeDir, runId = newRunId(), kind = 'scan',
 }) {
   const root = resolve(projectRoot);
   if (!(await stat(root).catch(() => null))?.isDirectory()) throw new Error(`폴더가 아닙니다: ${root}`);
@@ -54,11 +56,22 @@ export async function runScan({
   const project = createProjectApi(root, profile, isIgnored);
   emit({ type: 'run:start', projectRoot: root, modules: modules.map((m) => m.id), profile });
 
-  const results = await mapPool(modules, concurrency, (entry) =>
-    runModule({ runId, entry, project, userOptions: options[entry.id], aiProvider, emit, strict }));
+  // 일부러 문제를 심어 둔 프로젝트라면 정답표로 이번 검사의 정확도를 잽니다.
+  const expected = await readProjectExpected(root).catch((err) => {
+    emit({ type: 'log', moduleId: '', stage: null, level: 'warn', message: `정답표를 읽지 못해 정확도를 재지 않습니다: ${err.message}` });
+    return null;
+  });
+
+  const results = await mapPool(modules, concurrency, (entry) => runModule({
+    runId, entry, project, userOptions: options[entry.id], aiProvider, emit, strict, expected: expected?.modules[entry.id],
+  }));
 
   /** @type {import('../sdk/types.js').RunResult} */
-  const result = { runId, projectRoot: root, startedAt, finishedAt: new Date().toISOString(), profile, modules: results };
+  const result = {
+    runId, kind, projectRoot: root, startedAt, finishedAt: new Date().toISOString(), profile, modules: results,
+    ai: { available: aiProvider.available, provider: aiProvider.name, model: aiProvider.model },
+    ...(expected ? { expectedFile: expected.file } : {}),
+  };
   const baseDir = storeDir === null ? null : (storeDir ?? join(root, '.safescan'));
   if (baseDir) result.issues = await syncIssueStore(baseDir, result);
   emit({ type: 'run:end', result });
@@ -72,7 +85,7 @@ export async function runScan({
   return dir ? { ...result, savedTo: dir } : result;
 }
 
-async function runModule({ runId, entry, project, userOptions, aiProvider, emit, strict }) {
+async function runModule({ runId, entry, project, userOptions, aiProvider, emit, strict, expected }) {
   const { manifest } = entry;
   const moduleId = entry.id;
   const started = performance.now();
@@ -87,6 +100,7 @@ async function runModule({ runId, entry, project, userOptions, aiProvider, emit,
   let status = 'ok';
   let reason;
   const toolVersions = {};
+  let options = {};
   const log = (level, message) => emit({ type: 'log', moduleId, stage: null, level, message });
 
   emit({ type: 'module:start', moduleId });
@@ -100,7 +114,7 @@ async function runModule({ runId, entry, project, userOptions, aiProvider, emit,
 
   try {
     const definition = await loadModule(entry);
-    const options = resolveOptions(manifest, userOptions);
+    options = resolveOptions(manifest, userOptions);
 
     if (manifest.ai === 'required' && !aiProvider.available) {
       throw new SkipSignal('AI 가 필요한 모듈인데 AI 가 설정되지 않았습니다 (ANTHROPIC_API_KEY)');
@@ -153,6 +167,7 @@ async function runModule({ runId, entry, project, userOptions, aiProvider, emit,
 
   if (status !== 'ok') findings = [];
   const metrics = computeMetrics({ started, records, findings, verify });
+  const accuracy = expected && status === 'ok' ? { source: /** @type {const} */ ('project'), ...scoreFindings(findings, expected) } : undefined;
   emit({ type: 'module:end', moduleId, status, reason, metrics });
 
   return {
@@ -167,6 +182,8 @@ async function runModule({ runId, entry, project, userOptions, aiProvider, emit,
     metrics,
     aiCalls: records.ai,
     execCalls: records.exec,
+    options,
+    ...(accuracy ? { accuracy } : {}),
   };
 }
 
@@ -217,7 +234,7 @@ function checkVerifyReport(report) {
 async function probeTool(req, cwd, signal) {
   try {
     const r = await runCommand(req.bin, req.versionArgs ?? ['--version'], { cwd, timeoutMs: 20_000, signal });
-    return (r.stdout || r.stderr).trim().split('\n')[0].slice(0, 80) || 'unknown';
+    return versionLine(`${r.stdout}\n${r.stderr}`) || 'unknown';
   } catch (err) {
     if (err instanceof CommandNotFoundError) throw new SkipSignal(`'${req.bin}' 이(가) 설치되어 있지 않습니다. 설치: ${req.install}`);
     throw err;

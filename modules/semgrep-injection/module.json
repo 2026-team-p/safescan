@@ -1,25 +1,165 @@
 {
   "id": "semgrep-injection",
   "name": "인젝션 취약점 정적 분석 (Semgrep)",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "JavaScript · TypeScript · Python · Java 소스에서 SQL 인젝션, OS 명령 주입, XSS, eval 코드 주입, 서버 측 템플릿 주입 패턴을 Semgrep 규칙으로 찾습니다.",
   "category": "sast",
   "owasp": ["A05:2025"],
   "cwe": ["CWE-89", "CWE-78", "CWE-79", "CWE-95", "CWE-1336"],
   "status": "experimental",
-  "tool": {
-    "name": "Semgrep CE",
-    "homepage": "https://semgrep.dev/docs/",
-    "license": "LGPL-2.1"
-  },
+  "tool": { "name": "Semgrep CE", "homepage": "https://semgrep.dev/docs/", "license": "LGPL-2.1" },
   "requires": [
-    {
-      "bin": "semgrep",
-      "versionArgs": ["--version"],
-      "install": "pip install semgrep (Windows 에서 안 되면 WSL 또는 Docker 를 사용하세요)"
-    }
+    { "bin": "semgrep", "versionArgs": ["--version"], "install": "pip install semgrep (Windows 에서 안 되면 WSL 또는 Docker 를 사용하세요)" }
   ],
   "appliesWhen": { "files": ["*.js", "*.jsx", "*.mjs", "*.cjs", "*.ts", "*.tsx", "*.py", "*.java"] },
   "ai": "none",
-  "timeoutSec": 300
+  "options": {
+    "languages": {
+      "type": "multi",
+      "label": "검사할 언어",
+      "description": "고른 언어의 소스 파일만 검사합니다",
+      "choices": ["javascript", "typescript", "python", "java"],
+      "choiceLabels": { "javascript": "JavaScript", "typescript": "TypeScript", "python": "Python", "java": "Java" },
+      "default": ["javascript", "typescript", "python", "java"]
+    },
+    "checks": {
+      "type": "multi",
+      "label": "찾을 취약점",
+      "description": "고른 종류의 규칙 결과만 보여 줍니다",
+      "choices": ["sqli", "command", "xss", "code", "template"],
+      "choiceLabels": {
+        "sqli": "SQL 인젝션",
+        "command": "OS 명령 주입",
+        "xss": "XSS (크로스 사이트 스크립팅)",
+        "code": "코드 주입 (eval)",
+        "template": "서버 템플릿 주입 (SSTI)"
+      },
+      "default": ["sqli", "command", "xss", "code", "template"]
+    },
+    "excludeTests": {
+      "type": "boolean",
+      "label": "테스트 파일 제외",
+      "description": "test · tests · __tests__ · spec · e2e 폴더와 *.test.* · *.spec.* · test_*.py · *Test.java 파일은 검사하지 않습니다",
+      "default": false
+    }
+  },
+  "timeoutSec": 300,
+  "criteria": {
+    "confidence": [
+      { "min": 0.85, "label": "확정적인 패턴", "description": "규칙 신뢰도 HIGH — 위험한 함수에 연결 · 포맷 문자열이 바로 들어감" },
+      { "min": 0.6, "label": "맥락에 따라 오탐 가능", "description": "규칙 신뢰도 MEDIUM — XSS · SSTI 처럼 값의 흐름 · 맥락에 따라 안전할 수 있음" },
+      { "min": 0.4, "label": "추정", "description": "규칙 신뢰도 LOW 또는 미지정" }
+    ],
+    "accuracy": { "precision": 0.9, "recall": 0.9 }
+  },
+  "i18n": {
+    "en": {
+      "name": "Injection static analysis (Semgrep)",
+      "description": "Finds SQL injection, OS command injection, XSS, eval code injection and server-side template injection patterns in JavaScript, TypeScript, Python and Java source with Semgrep rules.",
+      "criteria": ["Definite pattern", "May be a false positive depending on context", "Estimate"],
+      "options": {
+        "languages": {
+          "label": "Languages to scan",
+          "description": "Only source files of the selected languages are scanned.",
+          "choiceLabels": { "javascript": "JavaScript", "typescript": "TypeScript", "python": "Python", "java": "Java" }
+        },
+        "checks": {
+          "label": "Vulnerabilities to find",
+          "description": "Shows results only from the selected rule types.",
+          "choiceLabels": {
+            "sqli": "SQL injection",
+            "command": "OS command injection",
+            "xss": "XSS (cross-site scripting)",
+            "code": "Code injection (eval)",
+            "template": "Server-side template injection (SSTI)"
+          }
+        },
+        "excludeTests": {
+          "label": "Exclude test files",
+          "description": "Skips test, tests, __tests__, spec and e2e folders and files such as *.test.*, *.spec.*, test_*.py and *Test.java."
+        }
+      }
+    },
+    "ja": {
+      "name": "インジェクション脆弱性の静的解析（Semgrep）",
+      "description": "JavaScript・TypeScript・Python・Java のソースから、SQL インジェクション、OS コマンドインジェクション、XSS、eval によるコードインジェクション、サーバーサイドテンプレートインジェクションのパターンを Semgrep ルールで検出します。",
+      "criteria": ["確実なパターン", "文脈によっては誤検知の可能性", "推定"],
+      "options": {
+        "languages": {
+          "label": "検査する言語",
+          "description": "選んだ言語のソースファイルだけを検査します。",
+          "choiceLabels": { "javascript": "JavaScript", "typescript": "TypeScript", "python": "Python", "java": "Java" }
+        },
+        "checks": {
+          "label": "検出する脆弱性",
+          "description": "選んだ種類のルールの結果だけを表示します。",
+          "choiceLabels": {
+            "sqli": "SQL インジェクション",
+            "command": "OS コマンドインジェクション",
+            "xss": "XSS（クロスサイトスクリプティング）",
+            "code": "コードインジェクション（eval）",
+            "template": "サーバーサイドテンプレートインジェクション（SSTI）"
+          }
+        },
+        "excludeTests": {
+          "label": "テストファイルを除外",
+          "description": "test・tests・__tests__・spec・e2e フォルダと、*.test.*・*.spec.*・test_*.py・*Test.java ファイルは検査しません。"
+        }
+      }
+    },
+    "es": {
+      "name": "Análisis estático de inyecciones (Semgrep)",
+      "description": "Encuentra patrones de inyección SQL, inyección de comandos del SO, XSS, inyección de código con eval e inyección de plantillas en servidor en código JavaScript, TypeScript, Python y Java con reglas de Semgrep.",
+      "criteria": ["Patrón seguro", "Puede ser falso positivo según el contexto", "Estimación"],
+      "options": {
+        "languages": {
+          "label": "Lenguajes a analizar",
+          "description": "Solo se analizan los archivos fuente de los lenguajes elegidos.",
+          "choiceLabels": { "javascript": "JavaScript", "typescript": "TypeScript", "python": "Python", "java": "Java" }
+        },
+        "checks": {
+          "label": "Vulnerabilidades a buscar",
+          "description": "Solo muestra resultados de los tipos de regla elegidos.",
+          "choiceLabels": {
+            "sqli": "Inyección SQL",
+            "command": "Inyección de comandos del SO",
+            "xss": "XSS (cross-site scripting)",
+            "code": "Inyección de código (eval)",
+            "template": "Inyección de plantillas en servidor (SSTI)"
+          }
+        },
+        "excludeTests": {
+          "label": "Excluir archivos de prueba",
+          "description": "Omite las carpetas test, tests, __tests__, spec y e2e, y archivos como *.test.*, *.spec.*, test_*.py y *Test.java."
+        }
+      }
+    },
+    "zh": {
+      "name": "注入漏洞静态分析（Semgrep）",
+      "description": "用 Semgrep 规则在 JavaScript、TypeScript、Python、Java 源码中查找 SQL 注入、操作系统命令注入、XSS、eval 代码注入和服务端模板注入模式。",
+      "criteria": ["确定的模式", "视上下文可能误报", "推测"],
+      "options": {
+        "languages": {
+          "label": "检查的语言",
+          "description": "只检查所选语言的源文件。",
+          "choiceLabels": { "javascript": "JavaScript", "typescript": "TypeScript", "python": "Python", "java": "Java" }
+        },
+        "checks": {
+          "label": "要查找的漏洞",
+          "description": "只显示所选类型规则的结果。",
+          "choiceLabels": {
+            "sqli": "SQL 注入",
+            "command": "操作系统命令注入",
+            "xss": "XSS（跨站脚本）",
+            "code": "代码注入（eval）",
+            "template": "服务端模板注入（SSTI）"
+          }
+        },
+        "excludeTests": {
+          "label": "排除测试文件",
+          "description": "不检查 test、tests、__tests__、spec、e2e 文件夹以及 *.test.*、*.spec.*、test_*.py、*Test.java 文件。"
+        }
+      }
+    }
+  }
 }
