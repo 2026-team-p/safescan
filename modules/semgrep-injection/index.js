@@ -49,8 +49,17 @@ export default defineModule({
   },
 
   // 3) 후처리: Semgrep 결과 1건 = Finding 1건
-  postprocess(ctx, raw) {
+  async postprocess(ctx, raw) {
+    // 로그인하지 않은 Semgrep 은 extra.lines 에 코드 대신 "requires login" 을 넣습니다. 소스에서 직접 읽습니다.
+    /** @type {Map<string, string[]>} */
+    const sources = new Map();
+    for (const file of new Set(raw.results.map((r) => toPosix(r.path)))) {
+      sources.set(file, (await ctx.project.readText(file)).split(/\r?\n/));
+    }
+
     return raw.results.map((r) => {
+      const file = toPosix(r.path);
+      const snippet = sources.get(file)?.slice(r.start.line - 1, r.end.line).join('\n').trim();
       const meta = r.extra.metadata ?? {};
       /** @type {string[]} */
       const cwe = toArray(meta.cwe).flatMap((c) => /CWE-\d+/.exec(c)?.[0] ?? []);
@@ -62,16 +71,16 @@ export default defineModule({
         confidence: CONFIDENCE[String(meta.confidence).toUpperCase()] ?? 0.5,
         description: r.extra.message,
         location: {
-          file: r.path.replaceAll('\\', '/'),
+          file,
           startLine: r.start.line,
           endLine: r.end.line,
-          snippet: r.extra.lines?.trim() || undefined,
+          snippet: snippet || undefined,
         },
         owasp: toArray(meta.owasp),
         cwe,
         remediation: r.extra.message,
         references: [],
-        raw: { checkId: r.check_id, semgrepSeverity: r.extra.severity },
+        raw: { semgrepSeverity: r.extra.severity },
       };
     });
   },
@@ -91,6 +100,10 @@ export default defineModule({
     };
   },
 });
+
+function toPosix(/** @type {string} */ p) {
+  return p.replaceAll('\\', '/');
+}
 
 /** Semgrep 은 규칙 파일 경로를 check_id 앞에 붙입니다. 규칙 이름("safescan.…")만 남깁니다. */
 function shortRuleId(/** @type {string} */ checkId) {

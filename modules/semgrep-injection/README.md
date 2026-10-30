@@ -45,8 +45,13 @@ OWASP A05:2025 (Injection).
 - 규칙이 적은 수의 대표 패턴만 다룹니다. ORM 별 raw 쿼리 API 등은 규칙을 추가해야 합니다.
 - Windows 에서는 Semgrep 설치가 어려울 수 있습니다 (WSL · Docker 권장).
 
+## 향후 개선 (보류)
+- Spring · JPA 규칙 추가: `@Query` 문자열 연결, `JdbcTemplate`, `createNativeQuery` 등. 실제 Spring Boot 프로젝트(platform-server)를 스캔해 보니 현재 규칙으로는 0건이었음.
+- 그 밖에 ORM 별 raw 쿼리 API 규칙, 변수를 거친 값의 흐름(taint) 확장.
+
 ## 코어 변경 요청
-없음.
+- `scan` 은 검사 대상 프로젝트 안에 `.safescan/runs/` 를 만듭니다. 대상 프로젝트가 팀 저장소이면 `git status` 에 잡힙니다. 저장 위치를 바꿀 수 있는 옵션이 필요합니다.
+- 파일을 하나씩 나열해 넘기므로 콘솔에 찍히는 명령줄이 매우 깁니다. 긴 인자 목록을 줄여서 출력하는 방안이 필요합니다.
 
 ## 벤치
 `fixtures/vulnerable` 에 JS · Python · Java 취약 코드 9건과, 같은 파일의 안전한 코드(바인딩 · 이스케이프 · 고정 명령)를 두었습니다.
