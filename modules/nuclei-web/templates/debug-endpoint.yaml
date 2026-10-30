@@ -1,0 +1,23 @@
+id: safescan-debug-endpoint
+info:
+  name: 디버그 엔드포인트 노출
+  author: safescan
+  severity: high
+  description: /debug 경로가 개발 환경 정보와 스택 정보를 응답합니다.
+  remediation: 운영 환경에서는 디버그 엔드포인트를 제거하거나 접근을 막으세요.
+  classification:
+    cwe-id: CWE-489
+  tags: exposure,misconfig,debug
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/debug"
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - '"debug":true'
