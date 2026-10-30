@@ -1,4 +1,5 @@
-import { SEVERITY } from '../lib/format.js';
+import { useTranslation } from 'react-i18next';
+import { SEVERITY_ICON } from '../lib/format.js';
 
 export function Toggle({ checked, onChange, disabled, label }) {
   return (
@@ -19,22 +20,22 @@ export function Toggle({ checked, onChange, disabled, label }) {
   );
 }
 
-export function SeverityBadge({ severity }) {
-  const s = SEVERITY[severity] ?? SEVERITY.low;
+export function SeverityBadge({ severity, count }) {
+  const { t } = useTranslation();
   return (
-    <span className={`severity severity-${severity}`} title={s.hint}>
-      <span aria-hidden>{s.icon}</span> {s.label}
+    <span className={`severity severity-${severity}`} title={t(`severity.${severity}Hint`)}>
+      <span aria-hidden>{SEVERITY_ICON[severity]}</span> {t(`severity.${severity}`)}{count != null ? ` ${count}` : ''}
     </span>
   );
 }
 
 export function Spinner({ size = 16 }) {
-  return <span className="spinner" style={{ width: size, height: size }} aria-label="진행 중" />;
+  return <span className="spinner" style={{ width: size, height: size }} aria-label="…" />;
 }
 
-export function Chip({ active, onClick, children }) {
+export function Chip({ active, onClick, disabled, children }) {
   return (
-    <button type="button" className={`chip ${active ? 'chip-active' : ''}`} aria-pressed={active} onClick={onClick}>
+    <button type="button" className={`chip ${active ? 'chip-active' : ''}`} aria-pressed={active} onClick={onClick} disabled={disabled}>
       {children}
     </button>
   );

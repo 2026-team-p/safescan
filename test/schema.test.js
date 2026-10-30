@@ -24,6 +24,23 @@ test('validateManifest: 폴더 이름 불일치 · 알 수 없는 필드 · 형�
   assert.ok(errors.some((e) => e.includes('semver')));
 });
 
+test('validateManifest: 검증 기준(criteria)과 번역(i18n) 형식을 확인한다', () => {
+  const ok = {
+    ...manifest,
+    criteria: { confidence: [{ min: 0.9, label: '확실' }, { min: 0.5, label: '추정' }], accuracy: { precision: 0.9, recall: 0.7 } },
+    i18n: { en: { name: 'Demo', description: 'desc', criteria: ['Sure', 'Guess'] }, 'zh-CN': { name: '演示' } },
+  };
+  assert.deepEqual(validateManifest(ok, 'demo'), []);
+  const bad = validateManifest({
+    ...manifest,
+    criteria: { confidence: [{ min: 2, label: '' }], accuracy: { recall: 1.5 } },
+    i18n: { English: { name: 1 }, en: { criteria: 'x' } },
+  }, 'demo');
+  for (const part of ['confidence[0].min', 'confidence[0].label', 'accuracy.recall', 'i18n.English', 'i18n.en.criteria']) {
+    assert.ok(bad.some((e) => e.includes(part)), `${part} 오류가 있어야 합니다: ${bad.join(' / ')}`);
+  }
+});
+
 test('normalizeFinding: 상대 경로만 허용', () => {
   const base = { ruleId: 'r', title: 't', severity: 'high', confidence: 0.5 };
   assert.ok(normalizeFinding({ ...base, location: { file: 'src/a.js' } }, 'm').finding);

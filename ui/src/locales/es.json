@@ -1,0 +1,304 @@
+{
+  "lang": {
+    "label": "Idioma"
+  },
+  "theme": {
+    "label": "Apariencia",
+    "system": "Sistema",
+    "light": "Claro",
+    "dark": "Oscuro"
+  },
+  "tab": {
+    "scan": "Análisis",
+    "issues": "Incidencias"
+  },
+  "assistant": {
+    "claude": "Claude conectado",
+    "claudeAuto": "Claude conectado · automático",
+    "api": "API · {{model}}",
+    "off": "IA desactivada",
+    "titleClaude": "La sesión de {{client}} se encarga del trabajo de IA",
+    "titleClaudeAuto": "La sesión de {{client}} se encarga del trabajo de IA (envío automático confirmado)",
+    "titleApi": "El trabajo de IA usa ANTHROPIC_API_KEY",
+    "titleOff": "Conecta Claude con safescan setup",
+    "waiting": "{{count}} esperando a Claude",
+    "waitingTitle": "Claude aún no ha recogido {{count}} tarea(s). Escribe \"{{request}}\" en el chat de Claude"
+  },
+  "telemetry": {
+    "aria": "Recursos en tiempo real",
+    "cost": "Coste de IA",
+    "time": "Tiempo",
+    "confidence": "Confianza",
+    "subscription": "Plan",
+    "subscriptionTitle": "El trabajo hecho dentro de la sesión de Claude cuenta para tu plan, así que aquí no se puede medir su coste"
+  },
+  "onboarding": {
+    "title": "Analizando package.json · pom.xml de este directorio…",
+    "sub": "Detectando lenguajes, frameworks y gestores de paquetes, y buscando herramientas de seguridad instaladas",
+    "errorTitle": "No se pudo conectar con el servidor",
+    "retry": "Reintentar",
+    "tokenError": "Falta el token de acceso o ha cambiado. Vuelve a abrir la dirección que muestra la terminal o pide a Claude \"abre SafeScan\"."
+  },
+  "setup": {
+    "eyebrow": "Configuración del análisis",
+    "title": "Elige los análisis para este proyecto"
+  },
+  "stack": {
+    "languages": "Lenguajes",
+    "frameworks": "Frameworks",
+    "packageManagers": "Gestores de paquetes",
+    "markers": "Archivos clave",
+    "none": "No detectado"
+  },
+  "wand": {
+    "button": "Configurar análisis para mi proyecto",
+    "busy": "Revisando tu proyecto…"
+  },
+  "advice": {
+    "claude": "Recomendado por Claude · {{time}}",
+    "ai": "Recomendado por IA · {{cost}}",
+    "rules": "Recomendación por reglas",
+    "rulesHint": "Conecta Claude (safescan setup) o configura ANTHROPIC_API_KEY para que la IA lea tu proyecto y elija.",
+    "failed": "No se pudo obtener la recomendación: {{error}}"
+  },
+  "reason": {
+    "project": "Parece un proyecto basado en {{stack}}.",
+    "projectUnknown": "No se pudo determinar la configuración del proyecto.",
+    "enable": "Se activan: {{modules}}.",
+    "none": "No hay módulos que se puedan activar.",
+    "missing": "Omitidos porque falta la herramienta: {{modules}}.",
+    "matched": "se encontró {{file}}",
+    "always": "aplica a todos los proyectos"
+  },
+  "modules": {
+    "title": "Módulos de seguridad",
+    "count": "{{selected}} de {{total}} seleccionados",
+    "search": "Buscar por nombre, herramienta u OWASP",
+    "empty": "Ningún módulo coincide",
+    "filter": {
+      "all": "Todos",
+      "applies": "Aplica a este proyecto",
+      "ready": "Listos",
+      "selected": "Seleccionados"
+    }
+  },
+  "module": {
+    "applies": "Aplica a este proyecto",
+    "notApplies": "Sin archivos que coincidan",
+    "usesAi": "Usa IA",
+    "missingTool": "{{bin}} no instalado",
+    "manifestError": "Error en module.json",
+    "aiRequired": "Necesita conexión de IA",
+    "install": "Instalar: {{hint}}",
+    "toggle": "Activar {{name}}",
+    "criteria": "Criterios de verificación",
+    "hideCriteria": "Ocultar criterios"
+  },
+  "criteria": {
+    "confidence": "Rangos de confianza",
+    "atLeast": "{{value}} o más",
+    "accuracy": "Objetivos de precisión",
+    "precision": "Precisión",
+    "recall": "Exhaustividad",
+    "target": "objetivo {{value}}",
+    "actual": "último {{value}}",
+    "latest": "Último bench {{date}} · v{{version}}",
+    "pass": "Cumple",
+    "fail": "No cumple",
+    "notMeasured": "Sin medir",
+    "noBench": "Aún no hay registros de bench (safescan bench {{id}})",
+    "benchSkipped": "El último bench no se ejecutó ({{status}})",
+    "none": "Este módulo no define criterios de verificación (criteria en module.json)"
+  },
+  "fab": {
+    "start": "Analizar con {{count}} módulos",
+    "empty": "Elige módulos",
+    "start_one": "Analizar con {{count}} módulo"
+  },
+  "job": {
+    "sent": "Enviado a Claude (#{{id}})",
+    "claudeRecommend": "Claude está eligiendo módulos…",
+    "claudePatch": "Claude está escribiendo un parche…",
+    "aiRecommend": "La IA está eligiendo módulos…",
+    "aiPatch": "La IA está escribiendo un parche…",
+    "seconds": "{{count}} s",
+    "cancel": "Cancelar",
+    "hintTitle": "Si no empieza solo, escribe esto en el chat de Claude",
+    "request": "Procesa las solicitudes de SafeScan",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "hintCli": "Inicia Claude con {{cmd}} en una terminal y los botones llegarán al instante."
+  },
+  "run": {
+    "eyebrowDone": "Análisis terminado",
+    "eyebrowRunning": "Analizando",
+    "titleDone": "El análisis ha terminado",
+    "titleRunning": "Analizando con {{count}} módulos",
+    "titlePreparing": "Preparando el análisis",
+    "newIssues": "Nuevas",
+    "resolved": "Resueltas",
+    "open": "Abiertas",
+    "newScan": "Nuevo análisis",
+    "showIssues": "Ver incidencias →",
+    "findings": "{{count}} encontrados",
+    "clean": "Sin problemas",
+    "confidence": "Confianza {{value}}%",
+    "details": "Detalles",
+    "findings_one": "{{count}} encontrado",
+    "titleRunning_one": "Analizando con {{count}} módulo"
+  },
+  "status": {
+    "pending": "En espera",
+    "running": "En curso",
+    "ok": "Hecho",
+    "skipped": "Omitido",
+    "failed": "Falló",
+    "timeout": "Tiempo agotado"
+  },
+  "stage": {
+    "preprocess": "Preparar",
+    "tool": "Herramienta",
+    "postprocess": "Normalizar",
+    "verify": "Verificar"
+  },
+  "detail": {
+    "close": "Cerrar",
+    "stages": "Etapas",
+    "checks": "Autocomprobaciones",
+    "noChecks": "Este módulo no tiene autocomprobaciones",
+    "notes": "Notas",
+    "metrics": "Métricas",
+    "duration": "Duración",
+    "aiCalls": "Llamadas a IA",
+    "tokens": "Tokens",
+    "cost": "Coste",
+    "confidence": "Confianza",
+    "tool": "Herramienta",
+    "commands": "Comandos ejecutados",
+    "findings": "Hallazgos",
+    "noFindings": "No se encontraron problemas",
+    "logs": "Registros de este módulo",
+    "reason": "Motivo",
+    "waitingResult": "Los detalles aparecerán aquí cuando termine el análisis"
+  },
+  "console": {
+    "title": "Consola de transparencia",
+    "lines": "{{count}} líneas",
+    "follow": "Desplazamiento automático",
+    "waiting": "Esperando registros…",
+    "ai": "IA {{model}} · {{tokens}} tok · {{cost}}",
+    "lines_one": "{{count}} línea"
+  },
+  "severity": {
+    "critical": "Crítica",
+    "high": "Alta",
+    "medium": "Media",
+    "low": "Baja",
+    "criticalHint": "Un fallo que podría comprometer el servidor ahora mismo",
+    "highHint": "Posible fuga de datos",
+    "mediumHint": "Falta una configuración de seguridad recomendada",
+    "lowHint": "Mal olor de código · informativo"
+  },
+  "column": {
+    "discovered": "Detectadas",
+    "in_progress": "En curso",
+    "resolved": "Resueltas"
+  },
+  "category": {
+    "sast": "Análisis de código",
+    "dast": "Análisis dinámico",
+    "dependency": "Dependencias",
+    "secrets": "Secretos",
+    "config": "Configuración",
+    "iac": "Infraestructura como código",
+    "container": "Contenedores",
+    "other": "Otros"
+  },
+  "board": {
+    "emptyTitle": "Aún no hay incidencias",
+    "emptyBody": "Los problemas que encuentren los análisis aparecerán aquí como tarjetas.",
+    "goScan": "Ir al análisis",
+    "dropHint": "Arrastra tarjetas aquí",
+    "summary": "{{count}} abiertas",
+    "rescan": "Volver a analizar",
+    "rescanTitle": "Vuelve a analizar los módulos con incidencias abiertas ({{modules}})",
+    "found": "Detectada {{date}}",
+    "resolvedAt": "Resuelta {{date}}",
+    "items": "{{count}} elementos",
+    "items_one": "{{count}} elemento"
+  },
+  "issue": {
+    "depTitle": "{{name}}@{{version}} · {{count}} avisos de seguridad",
+    "depTitle_one": "{{name}}@{{version}} · {{count}} aviso de seguridad"
+  },
+  "panel": {
+    "aria": "Detalles de la incidencia",
+    "status": "Estado",
+    "close": "Cerrar",
+    "found": "Detectada {{date}}",
+    "lastFound": "Visto por última vez",
+    "findings": "{{count}} hallazgos",
+    "remedyClaude": "Resolver con Claude",
+    "remedyAi": "Resolver con IA",
+    "requestClaude": "Pedir un parche a Claude",
+    "requestAi": "Pedir un parche a la IA",
+    "retry": "Volver a pedir con otras opciones",
+    "blockedNoAi": "No hay IA conectada. Conecta Claude con safescan setup o configura ANTHROPIC_API_KEY",
+    "blockedDependency": "Resuelve las incidencias de dependencias con tu gestor de paquetes (p. ej. npm audit fix)",
+    "blockedNoFile": "Esta incidencia no tiene ubicación de archivo",
+    "hintClaude": "La sesión de Claude conectada lee {{file}} y escribe un parche. El archivo solo cambia cuando lo aplicas aquí.",
+    "hintApi": "El contenido de {{file}} se envía a la IA ({{model}}).",
+    "hintMasked": " Los valores secretos se ocultan antes.",
+    "failed": "No se pudo obtener el parche: {{error}}",
+    "timeline": "Cronología",
+    "findings_one": "{{count}} hallazgo"
+  },
+  "patchOption": {
+    "stability": "Prioridad estabilidad",
+    "performance": "Prioridad rendimiento",
+    "keepStructure": "Mantener la estructura",
+    "comments": "Comentarios detallados"
+  },
+  "patch": {
+    "claude": "Parche de Claude · {{time}}",
+    "ai": "Parche de la IA",
+    "masked": " · {{count}} secretos ocultos",
+    "reject": "Rechazar",
+    "accept": "Aplicar y volver a analizar (Accept)",
+    "masked_one": " · {{count}} secreto oculto"
+  },
+  "verify": {
+    "running": "Volviendo a analizar el código modificado",
+    "ok": "✅ Análisis superado — el problema ya no aparece",
+    "fail": "⚠️ Sigue apareciendo tras el análisis. Vuelve a pedirlo con otras opciones"
+  },
+  "actor": {
+    "safescan": "SafeScan",
+    "user": "Tú",
+    "ai": "IA",
+    "claude": "Claude"
+  },
+  "thread": {
+    "detected": "El módulo {{module}} encontró {{count}}",
+    "changed": "El nuevo análisis cambió los resultados: {{added}} nuevos, {{removed}} desaparecidos ({{count}} ahora)",
+    "resolved": "Ya no aparece en el nuevo análisis; se movió a Resueltas",
+    "reopened": "Un problema resuelto volvió a aparecer ({{count}})",
+    "status": "{{from}} → {{to}}",
+    "patch_requested": "Se pidió un parche a {{who}}",
+    "patch_failed": "No se pudo escribir el parche: {{reason}}",
+    "patch_accepted": "Se aplicó el parche a {{file}}. Volviendo a analizar",
+    "patch_rejected": "No se aplicó el parche",
+    "patch_cancelled": "Se canceló la petición de parche",
+    "verify_still_found": "Sigue apareciendo después de la corrección",
+    "verify_incomplete": "El nuevo análisis no terminó ({{status}})",
+    "claudeSession": "Sesión de Claude · {{time}}"
+  },
+  "diff": {
+    "changed": "{{count}} líneas cambiadas",
+    "before": "Código actual",
+    "after": "Código propuesto",
+    "gap": "… {{count}} líneas iguales …",
+    "changed_one": "{{count}} línea cambiada",
+    "gap_one": "… {{count}} línea igual …"
+  }
+}

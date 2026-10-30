@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api, subscribeApp } from './api.js';
 import { IssueBoard } from './components/IssueBoard.jsx';
 import { IssuePanel } from './components/IssuePanel.jsx';
@@ -7,12 +8,15 @@ import { RunView } from './components/RunView.jsx';
 import { ScanSetup } from './components/ScanSetup.jsx';
 import { TopBar } from './components/TopBar.jsx';
 import { Toasts } from './components/ui.jsx';
+import { localizeModule } from './i18n.js';
 import { telemetryOf, useRun } from './lib/useRun.js';
 
 const MIN_ONBOARDING_MS = 900;
 const selectionKey = (root) => `safescan:selection:${root}`;
 const JOB_RANK = { queued: 0, working: 1 };
 const rankOf = (job) => JOB_RANK[job.status] ?? 2;
+// 같은 단계의 작업 갱신(예: 수정안 적용 표시)은 새 것을 받도록 나중 이벤트를 우선합니다.
+const newer = (a, b) => rankOf(b) > rankOf(a) || (rankOf(b) === rankOf(a) && (b.result?.patch?.consumed || !a.result?.patch?.consumed));
 
 function loadSelection(root) {
   try {
@@ -23,6 +27,7 @@ function loadSelection(root) {
 }
 
 export default function App() {
+  const { i18n } = useTranslation();
   const [state, setState] = useState(null);
   const [loadError, setLoadError] = useState(null);
   const [tab, setTab] = useState('scan');
@@ -31,7 +36,7 @@ export default function App() {
   const [openId, setOpenId] = useState(null);
   const [scanRunId, setScanRunId] = useState(null);
   const [verifyRunId, setVerifyRunId] = useState(null);
-  const [lastRun, setLastRun] = useState('scan');
+  const [telemetryRunId, setTelemetryRunId] = useState(null);
   const [starting, setStarting] = useState(false);
   const [aiSpend, setAiSpend] = useState(0);
   const [assistant, setAssistant] = useState(null);
@@ -49,7 +54,7 @@ export default function App() {
 
   // 작업은 응답과 /api/stream 양쪽으로 올 수 있어, 더 진행된 상태를 남깁니다. API 비용은 작업마다 한 번만 더합니다.
   const mergeJob = useCallback((job) => {
-    setJobs((map) => (map[job.id] && rankOf(map[job.id]) > rankOf(job) ? map : { ...map, [job.id]: job }));
+    setJobs((map) => (map[job.id] && !newer(map[job.id], job) ? map : { ...map, [job.id]: job }));
     if (rankOf(job) === 2 && job.aiCalls?.length && !countedJobs.current.has(job.id)) {
       countedJobs.current.add(job.id);
       setAiSpend((v) => v + job.aiCalls.reduce((sum, c) => sum + (c.costUsd ?? 0), 0));
@@ -75,11 +80,12 @@ export default function App() {
       setIssues(i.issues);
       setSelected(loadSelection(s.projectRoot));
       s.jobs.forEach(mergeJob);
-      if (s.activeRun) setScanRunId(s.activeRun);
+      if (s.activeRun) {
+        setScanRunId(s.activeRun);
+        setTelemetryRunId(s.activeRun);
+      }
     } catch (err) {
-      setLoadError(err.status === 401
-        ? '접속 토큰이 없거나 바뀌었습니다. 터미널에 표시된 주소로 다시 열거나, Claude 에게 "SafeScan 열어 줘" 라고 하세요.'
-        : err.message);
+      setLoadError(err.status === 401 ? 'token' : err.message);
     }
   }, [mergeJob]);
 
@@ -87,7 +93,7 @@ export default function App() {
     load();
   }, [load]);
 
-  // 화면 전체 이벤트: 작업 진행 · 이슈 변경 · Claude 연결 상태
+  // 화면 전체 이벤트: 작업 진행 · 이슈 변경 · Claude 연결 상태 · (어디서 시작했든) 검사 시작
   const loaded = Boolean(state);
   useEffect(() => {
     if (!loaded) return undefined;
@@ -98,40 +104,42 @@ export default function App() {
       } else if (event.type === 'assistant') setAssistant(event.assistant);
       else if (event.type === 'job') mergeJob(event.job);
       else if (event.type === 'issues') refreshIssues();
+      else if (event.type === 'run') setTelemetryRunId(event.runId);
     });
   }, [loaded, mergeJob, refreshIssues]);
 
-  // 검사 이벤트: AI 비용은 텔레메트리에 더하고, 끝나면 이슈를 다시 읽습니다.
-  const onRunEvent = useCallback((event) => {
+  // 텔레메트리는 가장 최근 검사 하나를 따라가고, AI 비용도 여기서만 셉니다 (중복 없이).
+  const onTelemetryEvent = useCallback((event) => {
     if (event.type === 'ai:call') setAiSpend((v) => v + event.costUsd);
-    if (event.type === 'run:closed') refreshIssues();
-  }, [refreshIssues]);
-  const scanRun = useRun(scanRunId, onRunEvent);
-  const verifyRun = useRun(verifyRunId, onRunEvent);
+  }, []);
+  const telemetryRun = useRun(telemetryRunId, onTelemetryEvent);
+  const scanRun = useRun(scanRunId);
+  const verifyRun = useRun(verifyRunId);
 
-  const running = (scanRunId && !scanRun.closed) || (verifyRunId && !verifyRun.closed);
+  const running = Boolean(telemetryRunId) && !telemetryRun.closed;
   useEffect(() => {
     if (!running) return undefined;
     const timer = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(timer);
   }, [running]);
 
-  const select = (next) => {
+  const select = useCallback((next) => {
     setSelected(next);
     try {
       localStorage.setItem(selectionKey(state.projectRoot), JSON.stringify([...next]));
     } catch { /* 저장 못 해도 동작에는 문제없음 */ }
-  };
+  }, [state]);
 
-  async function startScan() {
+  async function startScan(ids) {
     setStarting(true);
     try {
-      const ids = [...selected].filter((id) => state.modules.some((m) => m.id === id && m.ready));
       const { runId } = await api.startRun(ids);
       setScanRunId(runId);
-      setLastRun('scan');
+      setTelemetryRunId(runId);
+      return runId;
     } catch (err) {
       toast(err.message);
+      return null;
     } finally {
       setStarting(false);
     }
@@ -151,20 +159,26 @@ export default function App() {
   const updateIssue = (issue) => setIssues((list) => list.map((i) => (i.id === issue.id ? issue : i)));
 
   const moduleById = useMemo(() => Object.fromEntries((state?.modules ?? []).map((m) => [m.id, m])), [state]);
-  const moduleNames = useMemo(() => Object.fromEntries(Object.values(moduleById).map((m) => [m.id, m.name])), [moduleById]);
+  const moduleNames = useMemo(
+    () => Object.fromEntries(Object.values(moduleById).map((m) => [m.id, localizeModule(m, i18n.language).name])),
+    [moduleById, i18n.language],
+  );
 
-  if (!state) return <Onboarding error={loadError} onRetry={load} />;
+  if (!state || !assistant) return <Onboarding error={loadError} onRetry={load} />;
 
-  const telemetryRun = lastRun === 'verify' && verifyRunId ? verifyRun : scanRun;
-  const telemetry = { aiCost: aiSpend, ...telemetryOf(telemetryRun, now), live: Boolean(running) };
+  const telemetry = { aiCost: aiSpend, ...telemetryOf(telemetryRun, now), live: running };
   const openIssue = issues.find((i) => i.id === openId);
   const showRun = Boolean(scanRunId) && scanRun.runId === scanRunId;
+  const waitingJobs = Object.values(jobs).filter((j) => j.via === 'claude' && j.status === 'queued').length;
+  // 이슈 화면의 "다시 검사": 열린 이슈를 낸 모듈 중 지금 실행할 수 있는 것
+  const rescanIds = [...new Set(issues.filter((i) => i.status !== 'resolved').map((i) => i.moduleId))].filter((id) => moduleById[id]?.ready);
 
   return (
     <div className={`app ${openIssue && tab === 'issues' ? 'app-panel-open' : ''}`}>
       <TopBar
         state={state}
         assistant={assistant}
+        waitingJobs={waitingJobs}
         tab={tab}
         onTab={setTab}
         openIssues={issues.filter((i) => i.status !== 'resolved').length}
@@ -186,8 +200,8 @@ export default function App() {
           onJob={mergeJob}
           selected={selected}
           onSelect={select}
-          onStart={startScan}
-          starting={starting || Boolean(running)}
+          onStart={() => startScan([...selected].filter((id) => moduleById[id]?.ready))}
+          starting={starting || running}
           onError={toast}
         />
       ))}
@@ -200,6 +214,11 @@ export default function App() {
           onOpen={setOpenId}
           onMove={moveIssue}
           onGoScan={() => setTab('scan')}
+          rescanModules={rescanIds.map((id) => moduleNames[id] ?? id)}
+          busy={starting || running}
+          onRescan={async () => {
+            if (await startScan(rescanIds)) setTab('scan');
+          }}
         />
       )}
 
@@ -207,7 +226,7 @@ export default function App() {
         <IssuePanel
           issue={openIssue}
           module={moduleById[openIssue.moduleId]}
-          state={state}
+          moduleNames={moduleNames}
           assistant={assistant}
           jobs={jobs}
           verifyRun={verifyRun}
@@ -217,7 +236,7 @@ export default function App() {
           onJob={mergeJob}
           onVerify={(runId) => {
             setVerifyRunId(runId);
-            setLastRun('verify');
+            setTelemetryRunId(runId);
           }}
           onError={toast}
         />

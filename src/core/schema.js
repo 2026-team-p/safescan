@@ -9,8 +9,10 @@ const CWE_RE = /^CWE-\d+$/;
 const OPTION_TYPES = ['string', 'number', 'boolean', 'enum'];
 const MANIFEST_KEYS = new Set([
   'id', 'name', 'version', 'description', 'category', 'owasp', 'cwe', 'status',
-  'tool', 'requires', 'appliesWhen', 'ai', 'options', 'timeoutSec',
+  'tool', 'requires', 'appliesWhen', 'ai', 'options', 'timeoutSec', 'criteria', 'i18n',
 ]);
+const LANG_RE = /^[a-z]{2}(-[A-Z]{2})?$/;
+const isRatio = (v) => typeof v === 'number' && v >= 0 && v <= 1;
 
 const isStr = (v) => typeof v === 'string' && v.trim() !== '';
 const isStrArray = (v) => Array.isArray(v) && v.every(isStr);
@@ -67,6 +69,44 @@ export function validateManifest(m, folderName) {
   }
   if (m.timeoutSec !== undefined && !(Number.isFinite(m.timeoutSec) && m.timeoutSec > 0)) {
     errors.push('timeoutSec 는 양수여야 합니다');
+  }
+  if (m.criteria !== undefined) errors.push(...validateCriteria(m.criteria));
+  if (m.i18n !== undefined) errors.push(...validateI18n(m.i18n));
+  return errors;
+}
+
+/** 모듈별 수치 검증 기준: 신뢰도 구간의 뜻과 벤치 정확도 목표 */
+function validateCriteria(c) {
+  if (!c || typeof c !== 'object' || Array.isArray(c)) return ['criteria 는 객체여야 합니다'];
+  const errors = [];
+  if (c.confidence !== undefined) {
+    if (!Array.isArray(c.confidence)) errors.push('criteria.confidence 는 배열이어야 합니다');
+    else c.confidence.forEach((r, i) => {
+      if (!isRatio(r?.min)) errors.push(`criteria.confidence[${i}].min 은 0~1 숫자여야 합니다`);
+      if (!isStr(r?.label)) errors.push(`criteria.confidence[${i}].label 이 필요합니다`);
+    });
+  }
+  if (c.accuracy !== undefined) {
+    if (!c.accuracy || typeof c.accuracy !== 'object') errors.push('criteria.accuracy 는 객체여야 합니다');
+    else for (const k of ['precision', 'recall']) {
+      if (c.accuracy[k] !== undefined && !isRatio(c.accuracy[k])) errors.push(`criteria.accuracy.${k} 는 0~1 숫자여야 합니다`);
+    }
+  }
+  return errors;
+}
+
+/** 화면 언어별 이름 · 설명 · 신뢰도 구간 이름 */
+function validateI18n(t) {
+  if (!t || typeof t !== 'object' || Array.isArray(t)) return ['i18n 은 { 언어코드: {...} } 객체여야 합니다'];
+  const errors = [];
+  for (const [lang, v] of Object.entries(t)) {
+    if (!LANG_RE.test(lang)) errors.push(`i18n.${lang}: 언어 코드는 en, ja, zh 처럼 써야 합니다`);
+    if (!v || typeof v !== 'object') {
+      errors.push(`i18n.${lang} 는 객체여야 합니다`);
+      continue;
+    }
+    for (const k of ['name', 'description']) if (v[k] !== undefined && !isStr(v[k])) errors.push(`i18n.${lang}.${k} 는 문자열이어야 합니다`);
+    if (v.criteria !== undefined && !isStrArray(v.criteria)) errors.push(`i18n.${lang}.criteria 는 criteria.confidence 와 같은 순서의 문자열 배열이어야 합니다`);
   }
   return errors;
 }

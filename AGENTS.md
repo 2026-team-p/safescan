@@ -72,7 +72,9 @@ test/                  node:test 테스트
 ## UI 를 고칠 때
 
 - `npm run dev:ui`(http://localhost:5173, 저장하면 바로 반영)와 `node bin/safescan.js run <경로>`(API, 3000)를 함께 띄웁니다.
-- 디자인 원칙: 흰색 + 하늘색, 선(border) 대신 배경 색 · 여백으로 영역 구분. 색 · 간격은 `ui/src/styles.css` 의 `:root` 변수를 씁니다.
+- 디자인 원칙: 흰색 + 하늘색, 선(border) 대신 배경 색 · 여백으로 영역 구분. 색 · 간격은 `ui/src/styles.css` 의 `:root` 변수를 씁니다. 어두운 화면 값은 같은 파일의 `[data-theme="dark"]` 블록에 있으니, 변수를 더하면 두 곳 모두 채웁니다.
+- 화면 문구는 직접 쓰지 않고 `ui/src/locales/{ko,en,ja,es,zh}.json` 에 키를 더한 뒤 `t('키')` 로 씁니다. 다섯 파일의 키와 `{{변수}}` 는 똑같이 맞춥니다 (영어 · 스페인어는 단수형 `_one` 키도 필요할 수 있음).
+- 서버가 이슈 스레드에 남기는 항목은 `message`(한국어) 와 함께 `data` 에 값을 담습니다. UI 는 `data` 로 언어별 문장을 만들고, `data` 가 없는 옛 항목만 `message` 를 그대로 보여 줍니다.
 - 서버 API 를 추가하면 `src/server/api.js` 의 routes 와 `ui/src/api.js` 를 함께 고치고, `test/server.test.js` 에 테스트를 더합니다.
 - 상태를 바꾸는 API 는 POST + JSON 으로만 만듭니다 (서버의 Origin · Content-Type 검사가 다른 사이트의 요청을 막는 전제).
 

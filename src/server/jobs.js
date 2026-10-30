@@ -17,6 +17,7 @@ const OPEN = new Set(['queued', 'working']);
  * @property {'claude' | 'api' | 'rules'} via
  * @property {string} [issueId]
  * @property {string[]} [options]       사용자가 고른 옵션 이름
+ * @property {string} [lang]            답변 언어 (화면 언어)
  * @property {string} createdAt
  * @property {string} [startedAt]
  * @property {string} [finishedAt]
@@ -37,10 +38,10 @@ export class JobManager extends EventEmitter {
   }
 
   /**
-   * @param {{ kind: JobKind, via: Job['via'], issueId?: string, options?: string[], internal?: object }} p
+   * @param {{ kind: JobKind, via: Job['via'], issueId?: string, options?: string[], lang?: string, internal?: object }} p
    * @returns {Job}
    */
-  create({ kind, via, issueId, options, internal }) {
+  create({ kind, via, issueId, options, lang, internal }) {
     const job = {
       id: randomBytes(4).toString('hex'),
       kind,
@@ -48,6 +49,7 @@ export class JobManager extends EventEmitter {
       via,
       ...(issueId ? { issueId } : {}),
       ...(options ? { options } : {}),
+      ...(lang ? { lang } : {}),
       createdAt: new Date().toISOString(),
     };
     this.jobs.set(job.id, job);
@@ -73,6 +75,19 @@ export class JobManager extends EventEmitter {
 
   queued() {
     return [...this.jobs.values()].filter((j) => OPEN.has(j.status));
+  }
+
+  /** 화면을 새로 열어도 끝난 작업(아직 적용 안 한 수정안 포함)을 다시 보여 줄 수 있게 최근 작업을 모두 돌려줍니다. */
+  recent() {
+    return [...this.jobs.values()];
+  }
+
+  /** 수정안을 적용 · 거절했다고 표시합니다. 화면은 표시된 수정안을 다시 띄우지 않습니다. */
+  markConsumed(id, how) {
+    const job = this.jobs.get(id);
+    if (!job?.result?.patch || job.result.patch.consumed) return;
+    job.result.patch.consumed = how;
+    this.emit('update', job);
   }
 
   start(id, pickedBy) {

@@ -61,7 +61,9 @@ export function syncIssues(store, run) {
       if (!issue) {
         const created = {
           id, moduleId: mod.moduleId, group, status: /** @type {const} */ ('discovered'), createdAt: at, ...head,
-          thread: [entry(at, runId, 'detected', `${mod.moduleId} 모듈이 ${findings.length}건을 발견했습니다: ${listTitles(findings)}`)],
+          thread: [entry(at, runId, 'detected', `${mod.moduleId} 모듈이 ${findings.length}건을 발견했습니다: ${listTitles(findings)}`, {
+            moduleId: mod.moduleId, count: findings.length, titles: findings.slice(0, 3).map((f) => f.title),
+          })],
         };
         store.issues.push(created);
         byId.set(id, created);
@@ -76,10 +78,12 @@ export function syncIssues(store, run) {
 
       if (issue.status === 'resolved') {
         issue.status = 'discovered';
-        issue.thread.push(entry(at, runId, 'reopened', `해결됐던 문제가 다시 발견되었습니다 (${findings.length}건)`));
+        issue.thread.push(entry(at, runId, 'reopened', `해결됐던 문제가 다시 발견되었습니다 (${findings.length}건)`, { count: findings.length }));
         summary.reopened += 1;
       } else if (added || removed) {
-        issue.thread.push(entry(at, runId, 'changed', `재검사 결과가 바뀌었습니다: 새로 ${added}건, 사라짐 ${removed}건 (현재 ${findings.length}건)`));
+        issue.thread.push(entry(at, runId, 'changed', `재검사 결과가 바뀌었습니다: 새로 ${added}건, 사라짐 ${removed}건 (현재 ${findings.length}건)`, {
+          added, removed, count: findings.length,
+        }));
         summary.changed += 1;
       }
       Object.assign(issue, head);
@@ -89,7 +93,7 @@ export function syncIssues(store, run) {
       if (issue.moduleId !== mod.moduleId || issue.status === 'resolved' || seen.has(issue.id)) continue;
       issue.status = 'resolved';
       issue.updatedAt = at;
-      issue.thread.push(entry(at, runId, 'resolved', `${mod.moduleId} 재검사에서 더 이상 발견되지 않아 조치 완료로 옮겼습니다`));
+      issue.thread.push(entry(at, runId, 'resolved', `${mod.moduleId} 재검사에서 더 이상 발견되지 않아 조치 완료로 옮겼습니다`, { moduleId: mod.moduleId }));
       summary.resolved += 1;
     }
   }
@@ -142,7 +146,9 @@ export function addThreadEntry(issue, { at = new Date().toISOString(), ...rest }
 export function setIssueStatus(issue, status, actor = /** @type {const} */ ('user')) {
   if (!ISSUE_STATUSES.includes(status)) throw new Error(`알 수 없는 상태: ${status}`);
   if (issue.status === status) return false;
-  addThreadEntry(issue, { type: 'status', actor, message: `${STATUS_LABEL[issue.status]} → ${withRo(STATUS_LABEL[status])} 옮겼습니다` });
+  addThreadEntry(issue, {
+    type: 'status', actor, message: `${STATUS_LABEL[issue.status]} → ${withRo(STATUS_LABEL[status])} 옮겼습니다`, data: { from: issue.status, to: status },
+  });
   issue.status = status;
   return true;
 }
@@ -164,11 +170,12 @@ function withRo(word) {
 /** @param {NormalizedFinding[]} findings */
 function titleOf(findings) {
   const [first] = findings;
-  if (findings.length === 1) return first.title;
+  // 의존성 이슈는 한 건이어도 같은 모양으로 (패키지 · 버전이 보이게)
   if (first.dependency) {
     const { name, version } = first.dependency;
     return `${name}${version ? `@${version}` : ''} 보안 권고 ${findings.length}건`;
   }
+  if (findings.length === 1) return first.title;
   return `${first.title} 외 ${findings.length - 1}건`;
 }
 
@@ -179,8 +186,9 @@ function listTitles(findings) {
   return titles.join(', ') + (findings.length > 3 ? ` 외 ${findings.length - 3}건` : '');
 }
 
-function entry(at, runId, type, message) {
-  return { at, type, actor: /** @type {const} */ ('safescan'), runId, message };
+/** message 는 기본 언어 문장, data 는 화면이 언어별로 다시 쓸 때 쓰는 값입니다. */
+function entry(at, runId, type, message, data) {
+  return { at, type, actor: /** @type {const} */ ('safescan'), runId, message, ...(data ? { data } : {}) };
 }
 
 function groupBy(items, keyOf) {

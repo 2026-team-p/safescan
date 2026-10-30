@@ -168,7 +168,7 @@ test('처리할 수 없으면 fail_job, 화면에서 취소하면 제출을 거�
   assert.match(late.text, /취소/);
 
   const thread = (await http('/api/issues')).data.issues.find((i) => i.id === issue.id).thread.map((t) => t.type);
-  assert.deepEqual(thread.slice(-3), ['patch_failed', 'patch_requested', 'patch_rejected']);
+  assert.deepEqual(thread.slice(-3), ['patch_failed', 'patch_requested', 'patch_cancelled'], '취소는 거절과 따로 기록한다');
 });
 
 test('stdio 로 실행해도 stdout 에는 MCP 메시지만 나온다', async () => {

@@ -71,6 +71,39 @@ modules/<id>/
 | `ai` | | `none`(기본) · `optional` · `required` — §6 참고 |
 | `options` | | UI 에서 바꿀 수 있는 옵션. `{ 키: { type, label, default?, choices?, description? } }` |
 | `timeoutSec` | | 모듈 전체 제한 시간. 기본 300 |
+| `criteria` | | 이 모듈의 수치 기준. UI 의 "검증 기준" 패널에 그대로 보임 — 아래 참고 |
+| `i18n` | | 다른 언어 화면용 이름 · 설명 · 기준 이름. `{ "en": { name, description, criteria: [...] } }` — 아래 참고 |
+
+### 검증 기준 (`criteria`)
+
+신뢰도를 어떤 근거로 몇으로 매기는지(§5), 벤치에서 정밀도 · 재현율이 얼마 이상이어야 하는지(§7)를 적습니다.
+UI 는 모듈마다 이 값을 보여 주고, 최근 벤치 결과와 비교해 통과 · 미달 · 측정 안 됨을 표시합니다.
+
+```json
+"criteria": {
+  "confidence": [
+    { "min": 0.85, "label": "형식이 정해진 규칙", "description": "JWT · 개인 키처럼 모양이 정해진 값" },
+    { "min": 0.55, "label": "일반 키 (추정)", "description": "오탐 가능성 있음" }
+  ],
+  "accuracy": { "precision": 0.9, "recall": 0.7 }
+}
+```
+
+- `confidence` — 높은 값부터 적습니다. `min` 은 0~1, 코드가 실제로 매기는 값과 맞아야 합니다.
+- `accuracy` — 벤치 목표. `allowExtra: true` 라 정밀도를 잴 수 없으면 `recall` 만 적습니다.
+
+### 다른 언어 (`i18n`)
+
+UI 는 한국어(기본) · English · 日本語 · Español · 简体中文 을 지원합니다. `name` · `description` · `criteria[].label` 을 언어별로 적으면 그 언어 화면에서 바꿔 보여 주고, 빠진 항목은 한국어 값을 씁니다.
+`criteria` 배열은 `criteria.confidence` 와 **같은 순서**로 적습니다. 언어 코드는 `en` `ja` `es` `zh` 입니다.
+
+```json
+"i18n": {
+  "en": { "name": "Hardcoded secrets", "description": "Finds API keys …", "criteria": ["Fixed-format rule", "Generic key (heuristic)"] }
+}
+```
+
+Finding 제목 · 로그 · 건너뛴 이유처럼 모듈 코드가 만드는 문장은 번역되지 않습니다. 한국어로 적습니다.
 
 OWASP Top 10:2025 — A01 Broken Access Control · A02 Security Misconfiguration · A03 Software Supply Chain Failures ·
 A04 Cryptographic Failures · A05 Injection · A06 Insecure Design · A07 Authentication Failures ·
@@ -206,7 +239,7 @@ safescan bench <id>     # status ok, 재현율 확인
 npm test                # 모든 모듈 계약 테스트 통과
 ```
 
-- [ ] `module.json` — 설명 · 도구 · requires · appliesWhen · owasp 채움
+- [ ] `module.json` — 설명 · 도구 · requires · appliesWhen · owasp 채움, `criteria`(신뢰도 기준 · 벤치 목표) · `i18n` 적기
 - [ ] 4단계 구현, 대상이 없을 때 `ctx.skip()`
 - [ ] 외부 도구는 `ctx.exec`, AI 는 `ctx.ai` 로만 호출
 - [ ] `fixtures/vulnerable` + `expected.json` 작성, 벤치 결과를 PR 설명에 붙임
