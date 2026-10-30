@@ -1,0 +1,8 @@
+{
+  "description": "fixtures/vulnerable/server.js 를 띄우고 templates=bundled 로 검사했을 때 찾아야 하는 결과 2건: /files/ 디렉터리 리스팅, /debug 디버그 엔드포인트. 모듈 내장 템플릿만 쓰므로 결과가 항상 같습니다(allowExtra: false). 서버는 SafeScan 이 띄우지 않으므로 bench 는 targetUrl 이 없는 동안 '건너뜀'으로 끝납니다 (README 의 코어 변경 요청 참고).",
+  "allowExtra": false,
+  "findings": [
+    { "ruleId": "safescan-dir-listing", "severity": "medium" },
+    { "ruleId": "safescan-debug-endpoint", "severity": "high" }
+  ]
+}
