@@ -4,6 +4,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { normalizeFinding } from '../../src/core/schema.js';
 import mod from './index.js';
@@ -109,7 +110,7 @@ const SKIPPED = Symbol('skipped');
 function prepCtx(options, { ai } = {}) {
   const logs = [];
   return {
-    options: { severity: 'low,medium,high,critical', rateLimit: 50, tags: '', templates: 'bundled', useAiTags: true, allowRemote: false, ...options },
+    options: { severity: ['low', 'medium', 'high', 'critical'], rateLimit: 50, tags: '', templates: 'bundled', useAiTags: true, allowRemote: false, ...options },
     project: { profile: { languages: ['JavaScript'], frameworks: ['express'], packageManagers: ['npm'] } },
     ai: ai ?? { available: false },
     log: { info: (m) => logs.push(m), warn: (m) => logs.push(m), debug() {}, error() {} },
@@ -150,9 +151,17 @@ test('전처리: http(s) 가 아니거나 계정 정보가 들어 있으면 건�
 });
 
 test('전처리: 옵션 검증', async () => {
+  await assert.rejects(mod.preprocess(prepCtx({ targetUrl: 'http://localhost', severity: ['low', 'bogus'] })), /severity/);
   await assert.rejects(mod.preprocess(prepCtx({ targetUrl: 'http://localhost', severity: 'low,bogus' })), /severity/);
   await assert.rejects(mod.preprocess(prepCtx({ targetUrl: 'http://localhost', tags: 'ok,bad tag;rm' })), /tags/);
   await assert.rejects(mod.preprocess(prepCtx({ targetUrl: 'http://localhost', rateLimit: 0 })), /rateLimit/);
+});
+
+test('전처리: 위험도는 배열(multi)로 받고 예전 쉼표 문자열도 받는다. 하나도 고르지 않으면 건너뛴다', async () => {
+  const base = { targetUrl: 'http://localhost:3000' };
+  assert.deepEqual((await mod.preprocess(prepCtx({ ...base, severity: ['high', 'critical'] }))).severity, ['high', 'critical']);
+  assert.deepEqual((await mod.preprocess(prepCtx({ ...base, severity: 'info, low' }))).severity, ['info', 'low']);
+  await skipsWith({ ...base, severity: [] }, /위험도/);
 });
 
 test('전처리: 태그 — 직접 지정 > AI > 기본값', async () => {
@@ -189,10 +198,20 @@ test('툴: 위험한 태그를 제외하고, 셸 문자열 없이 인자 배열�
   assert.equal(at('-severity'), 'high');
   assert.equal(at('-tags'), 'exposure');
   assert.equal(at('-rl'), '20');
-  assert.equal(at('-t'), '/m/templates');
+  assert.equal(at('-t'), join('/m', 'templates'));
   for (const flag of ['-no-stdin', '-ni', '-duc', '-omit-raw', '-jsonl']) assert.ok(called.args.includes(flag), flag);
   assert.deepEqual(called.opts.okExitCodes, [0, 1]);
 
   await mod.tool(toolCtx, { ...input, bundled: false });
   assert.ok(!called.args.includes('-t'));
+});
+
+test('툴: 위험도 · 태그에 맞는 템플릿이 없으면 건너뛴다', async () => {
+  const toolCtx = {
+    module: { dir: '/m' },
+    exec: async () => ({ stdout: '', stderr: '[FTL] Could not run nuclei: no templates provided for scan' }),
+    skip: (reason) => { throw Object.assign(new Error(reason), { [SKIPPED]: true }); },
+  };
+  const input = { url: 'http://localhost:3000', severity: ['info'], tags: [], rateLimit: 50, bundled: true };
+  await assert.rejects(mod.tool(toolCtx, input), (err) => err[SKIPPED] && /템플릿이 없습니다/.test(err.message));
 });

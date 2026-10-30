@@ -21,10 +21,21 @@ OWASP A05:2025 (Injection).
 ## 단계별 동작
 | 단계 | 하는 일 | AI |
 |---|---|---|
-| 전처리 | `findFiles` 로 소스 파일 수집 (`.safescanignore` 적용). 없으면 건너뜀 | 없음 |
+| 전처리 | `findFiles` 로 고른 언어(`languages`)의 소스 파일 수집 (`.safescanignore` 적용, `excludeTests` 면 테스트 파일 제외). 없으면 건너뜀 | 없음 |
 | 툴 | 파일을 100개씩 나눠 `semgrep scan --json --config rules/` 실행 | - |
-| 후처리 | 결과 1건 = Finding 1건. 규칙 메타데이터에서 CWE · OWASP · 신뢰도를 가져옴 | 없음 |
-| 검증 | Semgrep 오류 0건인지, 원본 결과 수와 Finding 수가 같은지 확인 | 없음 |
+| 후처리 | 결과 1건 = Finding 1건. 규칙 메타데이터에서 CWE · OWASP · 신뢰도를 가져옴. 고르지 않은 종류(`checks`)의 결과는 뺌 | 없음 |
+| 검증 | Semgrep 오류 0건인지, 원본 결과 수 = Finding 수 + 고르지 않은 종류 수인지 확인 | 없음 |
+
+## 옵션
+| 키 | 타입 | 기본 | 설명 |
+|---|---|---|---|
+| `languages` | multi `javascript` · `typescript` · `python` · `java` | 모두 | 검사할 언어. JavaScript = `.js` `.jsx` `.mjs` `.cjs`, TypeScript = `.ts` `.tsx`. 하나도 고르지 않으면 건너뜀 |
+| `checks` | multi `sqli` · `command` · `xss` · `code` · `template` | 모두 | 찾을 취약점. 규칙의 CWE 로 나눔: CWE-89 · 78 · 79 · 95 · 1336. 하나도 고르지 않으면 건너뜀 |
+| `excludeTests` | boolean | false | `test` · `tests` · `__tests__` · `__mocks__` · `spec` · `e2e` · `testdata` 폴더와 `*.test.*` · `*.spec.*` · `test_*.py` · `*_test.py` · `conftest.py` · `*Test.java` · `*IT.java` 파일은 Semgrep 에 넘기지 않음 |
+
+```bash
+safescan scan ./my-app -m semgrep-injection -o semgrep-injection.languages=javascript,typescript -o semgrep-injection.excludeTests=true
+```
 
 ## 위험도 매핑
 | Semgrep | SafeScan |
@@ -35,7 +46,7 @@ OWASP A05:2025 (Injection).
 | INFO | `low` |
 
 ## 신뢰도 기준
-규칙 `metadata.confidence` 를 옮깁니다: HIGH 0.85 · MEDIUM 0.6 · LOW 0.4 (없으면 0.5).
+규칙 `metadata.confidence` 를 옮깁니다: HIGH 0.85 · MEDIUM 0.6 · LOW 0.4 (없으면 0.5). `module.json` 의 `criteria.confidence` 가 같은 구간입니다.
 - HIGH: 위험한 함수에 연결 · 포맷 문자열이 직접 들어가는 패턴
 - MEDIUM: XSS 처럼 흐름 · 맥락에 따라 오탐이 있는 규칙
 
@@ -56,3 +67,10 @@ OWASP A05:2025 (Injection).
 ## 벤치
 `fixtures/vulnerable` 에 JS · Python · Java 취약 코드 9건과, 같은 파일의 안전한 코드(바인딩 · 이스케이프 · 고정 명령)를 두었습니다.
 `allowExtra: false` 라서 안전한 코드를 잡으면 오탐으로 계산됩니다.
+
+| 버전 | 정밀도 | 재현율 | F1 |
+|---|---|---|---|
+| 0.1.0 | 100% | 100% | 100% (TP 9 · FP 0 · FN 0) |
+| 0.2.0 | 100% | 100% | 100% (TP 9 · FP 0 · FN 0) |
+
+`criteria.accuracy` 목표는 정밀도 · 재현율 0.9 입니다 (Semgrep 1.183.0).

@@ -47,7 +47,11 @@ export const api = {
   recommend: (lang) => post('/recommend', { lang }),
   job: (id) => request(`/jobs/${id}`),
   cancelJob: (id) => post(`/jobs/${id}/cancel`),
-  startRun: (modules) => post('/runs', { modules }),
+  /** options: { 모듈 id: { 옵션: 값 } } — 저장된 설정 위에 덮입니다 */
+  startRun: (modules, options) => post('/runs', { modules, options }),
+  saveOptions: (moduleId, options) => post('/settings/options', { moduleId, options }),
+  history: () => request('/history'),
+  run: (id) => request(`/runs/${id}`),
   issues: () => request('/issues'),
   setStatus: (id, status) => post(`/issues/${id}/status`, { status }),
   requestPatch: (id, options, lang) => post(`/issues/${id}/patch`, { options, lang }),

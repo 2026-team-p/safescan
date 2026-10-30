@@ -3,14 +3,18 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../api.js';
 import { localizeModule } from '../i18n.js';
 import { display, duration, listOf, usd } from '../lib/format.js';
+import { changedKeys, effectiveOptions, missingRequired } from '../lib/options.js';
 import { isOpenJob, JobWaiting } from './AiJob.jsx';
 import { Criteria } from './Criteria.jsx';
+import { ModuleOptions } from './ModuleOptions.jsx';
 import { Spinner, Toggle } from './ui.jsx';
 
 const FILTERS = ['all', 'applies', 'ready', 'selected'];
 const MAX_MARKERS = 6;
 
-export function ScanSetup({ state, assistant, jobs, onJob, selected, onSelect, onStart, onError, starting }) {
+export function ScanSetup({
+  state, assistant, jobs, onJob, selected, onSelect, onStart, onError, starting, moduleOptions, onOption, onResetOptions,
+}) {
   const { t, i18n } = useTranslation();
   const [jobId, setJobId] = useState(null);
   const [asking, setAsking] = useState(false);
@@ -77,7 +81,15 @@ export function ScanSetup({ state, assistant, jobs, onJob, selected, onSelect, o
         </div>
       </section>
 
-      <ModuleList modules={modules} selected={selected} onSelect={onSelect} count={count} />
+      <ModuleList
+        modules={modules}
+        selected={selected}
+        onSelect={onSelect}
+        count={count}
+        moduleOptions={moduleOptions}
+        onOption={onOption}
+        onResetOptions={onResetOptions}
+      />
 
       <button type="button" className="fab" onClick={onStart} disabled={!count || starting}>
         {starting ? <Spinner size={18} /> : <span className="fab-play" aria-hidden>▶</span>}
@@ -112,13 +124,15 @@ function Stack({ profile }) {
   );
 }
 
-function ModuleList({ modules, selected, onSelect, count }) {
+function ModuleList({ modules, selected, onSelect, count, moduleOptions, onOption, onResetOptions }) {
   const { t, i18n } = useTranslation();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const [category, setCategory] = useState(null);
-  const [open, setOpen] = useState(() => new Set());
+  // 모듈마다 펼친 칸: 'options' | 'criteria'
+  const [open, setOpen] = useState(() => ({}));
   const categories = [...new Set(modules.map((m) => m.category))];
+  const flip = (id, panel) => setOpen((s) => ({ ...s, [id]: s[id] === panel ? null : panel }));
 
   const toggle = (id, on) => {
     const next = new Set(selected);
@@ -173,7 +187,12 @@ function ModuleList({ modules, selected, onSelect, count }) {
         {visible.map((m) => {
           const on = selected.has(m.id) && m.ready;
           const loc = localizeModule(m, i18n.language);
-          const expanded = open.has(m.id);
+          const panel = open[m.id] ?? null;
+          const saved = moduleOptions[m.id] ?? {};
+          const values = effectiveOptions(m, saved);
+          const optionCount = Object.keys(m.options ?? {}).length;
+          const changed = changedKeys(m, saved).length;
+          const missing = on ? missingRequired(m, values) : [];
           const blocked = m.errors.length ? t('module.manifestError')
             : m.missing.length ? t('module.missingTool', { bin: m.missing[0].bin }) : m.aiBlocked ? t('module.aiRequired') : null;
           const version = Object.values(m.toolVersions)[0];
@@ -200,20 +219,33 @@ function ModuleList({ modules, selected, onSelect, count }) {
                 </button>
                 <Toggle checked={on} disabled={!m.ready} onChange={(v) => toggle(m.id, v)} label={t('module.toggle', { name: loc.name })} />
               </div>
-              <button
-                type="button"
-                className="module-more"
-                aria-expanded={expanded}
-                onClick={() => setOpen((s) => {
-                  const next = new Set(s);
-                  if (next.has(m.id)) next.delete(m.id);
-                  else next.add(m.id);
-                  return next;
-                })}
-              >
-                {expanded ? t('module.hideCriteria') : t('module.criteria')} <span aria-hidden>{expanded ? '▴' : '▾'}</span>
-              </button>
-              {expanded && <Criteria module={m} />}
+              {missing.length > 0 && (
+                <button type="button" className="module-warn" onClick={() => setOpen((s) => ({ ...s, [m.id]: 'options' }))}>
+                  <span aria-hidden>⚠</span> {t('options.missing', { option: listOf(missing.map((k) => loc.option(k).label)) })}
+                </button>
+              )}
+              <div className="module-panels">
+                {optionCount > 0 && (
+                  <button type="button" className={`module-more ${panel === 'options' ? 'module-more-on' : ''}`} aria-expanded={panel === 'options'} onClick={() => flip(m.id, 'options')}>
+                    <span aria-hidden>⚙</span> {t('options.title')}
+                    {changed > 0 ? <span className="module-more-badge">{t('options.changedBadge', { count: changed })}</span> : <span className="muted"> {optionCount}</span>}
+                    <span aria-hidden> {panel === 'options' ? '▴' : '▾'}</span>
+                  </button>
+                )}
+                <button type="button" className={`module-more ${panel === 'criteria' ? 'module-more-on' : ''}`} aria-expanded={panel === 'criteria'} onClick={() => flip(m.id, 'criteria')}>
+                  {t('module.criteria')} <span aria-hidden>{panel === 'criteria' ? '▴' : '▾'}</span>
+                </button>
+              </div>
+              {panel === 'options' && (
+                <ModuleOptions
+                  module={m}
+                  values={values}
+                  saved={saved}
+                  onChange={(key, value) => onOption(m, key, value)}
+                  onReset={() => onResetOptions(m)}
+                />
+              )}
+              {panel === 'criteria' && <Criteria module={m} />}
             </li>
           );
         })}

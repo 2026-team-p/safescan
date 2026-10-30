@@ -69,10 +69,41 @@ modules/<id>/
 | `requires` | | `[{ bin, versionArgs?, install }]` 필요한 실행 파일. 없으면 설치 안내와 함께 **자동으로 건너뜀**. 확인한 버전은 기록에 남음 |
 | `appliesWhen` | | `{ files: ["package.json", "*.py"] }` 이 중 하나라도 있으면 적용 대상. 생략하면 항상 적용 |
 | `ai` | | `none`(기본) · `optional` · `required` — §6 참고 |
-| `options` | | UI 에서 바꿀 수 있는 옵션. `{ 키: { type, label, default?, choices?, description? } }` |
+| `options` | | 검사 설정 화면에서 바꿀 수 있는 옵션 — 아래 참고 |
 | `timeoutSec` | | 모듈 전체 제한 시간. 기본 300 |
 | `criteria` | | 이 모듈의 수치 기준. UI 의 "검증 기준" 패널에 그대로 보임 — 아래 참고 |
 | `i18n` | | 다른 언어 화면용 이름 · 설명 · 기준 이름. `{ "en": { name, description, criteria: [...] } }` — 아래 참고 |
+
+### 옵션 (`options`)
+
+검사 설정 화면은 모듈마다 옵션을 입력 칸으로 보여 줍니다. 사용자가 고른 값은 프로젝트의 `.safescan/settings.json` 에 저장되고,
+화면 · CLI(`safescan scan`) · Claude(`run_scan`) · 수정 후 재검사가 모두 같은 값을 씁니다. CLI 의 `-o 모듈.키=값` 은 저장된 값보다 우선합니다.
+모듈 코드에서는 `ctx.options.키` 로 읽습니다 (기본값이 채워진 상태).
+
+| 필드 | 설명 |
+|---|---|
+| `type` | `boolean` 켜기/끄기 · `enum` 하나 고르기 · `multi` 여러 개 고르기(값은 배열) · `number` · `string` |
+| `label` · `description` | 화면에 보일 이름과 한 줄 설명 (한국어). 다른 언어는 `i18n.<언어>.options.<키>` |
+| `default` | 기본값. **기본값으로 돌렸을 때 지금까지와 똑같이 동작**해야 벤치 결과가 흔들리지 않습니다 |
+| `choices` · `choiceLabels` | enum · multi 의 선택지와 화면 이름. 예: `{ "baseline": "기본 (요청만 관찰)" }` |
+| `min` · `max` · `step` · `unit` | number 의 범위와 단위. 범위를 벗어나면 화면 · 서버가 받지 않습니다 |
+| `placeholder` · `format` | string 의 입력 예시. `format: "url"` 이면 http(s) 주소만 받습니다 (빈 값은 허용) |
+| `required` | 비어 있으면 모듈이 건너뛰는 옵션 (예: 동적 검사의 서버 주소). 화면이 검사 전에 알려 줍니다 |
+| `when` | 다른 옵션이 이 값일 때만 보입니다. 예: `{ "mode": "full" }` |
+| `advanced` | 자주 바꾸지 않는 옵션. 화면에서 "고급" 아래에 접어 둡니다 |
+
+```json
+"options": {
+  "url": { "type": "string", "label": "검사할 서버 주소", "format": "url", "required": true, "placeholder": "http://localhost:3000" },
+  "severity": { "type": "multi", "label": "검사할 위험도", "choices": ["low", "medium", "high", "critical"], "default": ["medium", "high", "critical"],
+                "choiceLabels": { "low": "낮음", "medium": "보통", "high": "높음", "critical": "치명적" } },
+  "mode": { "type": "enum", "label": "검사 방식", "choices": ["baseline", "full"], "default": "baseline" },
+  "confirmActive": { "type": "boolean", "label": "공격 요청 보내기 승인", "default": false, "when": { "mode": "full" } },
+  "minutes": { "type": "number", "label": "탐색 시간", "default": 2, "min": 1, "max": 30, "unit": "분", "advanced": true }
+}
+```
+
+옵션은 그 모듈의 도구와 사용자에게 의미 있는 것만 둡니다. 도구 인자를 그대로 늘어놓지 말고, "무엇을 검사할지 · 얼마나 깊게 · 무엇을 뺄지" 를 사용자 말로 고르게 하세요.
 
 ### 검증 기준 (`criteria`)
 
@@ -215,6 +246,13 @@ A08 Software or Data Integrity Failures · A09 Security Logging and Alerting Fai
 
 ```bash
 safescan bench <id>     # 정밀도 · 재현율 · F1 · 시간 · 비용을 .safescan/bench/<id>.jsonl 에 쌓고 직전 기록과 비교
+```
+
+일부러 문제를 심어 둔 예제 프로젝트라면, 프로젝트 루트에 같은 형식의 정답표 `safescan.expected.json` 을 모듈별로 둘 수 있습니다.
+그러면 검사할 때마다 그 검사의 정확도를 재서 결과 화면 · 기록 화면 · CLI 요약에 보여 줍니다.
+
+```json
+{ "modules": { "gitleaks": { "allowExtra": false, "findings": [{ "ruleId": "jwt", "file": "scripts/seed-admin.js", "line": 5 }] } } }
 ```
 
 ---

@@ -26,6 +26,23 @@ node bin/safescan.js scan "$HOME\Desktop\hackathon" -m owasp-zap -o owasp-zap.ur
 
 `http://localhost`와 `127.0.0.1`은 Docker 컨테이너가 접근할 수 있게 `host.docker.internal`로 변환합니다.
 
+## 옵션
+
+검사 설정 화면에는 `spiderMinutes` 를 뺀 옵션이 보이고, `confirmActive` 는 `mode` 가 `full` 일 때만 보입니다.
+
+| 키 | 타입 | 기본 | 설명 |
+|---|---|---|---|
+| `url` | string (필수, url) | (없음) | 검사할 로컬 사이트 주소. localhost · 127.0.0.1 · host.docker.internal 만 허용. 비어 있으면 `.safescan-zap.json` 의 `url` 을 쓰고(벤치용), 그것도 없으면 건너뜀 |
+| `mode` | enum `baseline` · `full` | `baseline` | `baseline`: 둘러보며 응답만 관찰 (`zap-baseline.py`) / `full`: 공격 요청 포함 (`zap-full-scan.py`) |
+| `confirmActive` | boolean (`mode=full` 일 때) | false | 공격 요청 보내기에 동의. `full` 인데 꺼져 있으면 실패가 아니라 **건너뜀**으로 끝남 |
+| `ajaxSpider` | boolean | false | 기본 탐색에 더해 브라우저(AJAX Spider)로도 탐색 (`-j`). React · Vue 같은 SPA 에서 페이지를 더 찾지만 시간이 늘어남 |
+| `minRisk` | enum `info` · `low` · `medium` · `high` | `info` | 보고할 최소 위험도 (ZAP riskcode 0 · 1 · 2 · 3). 낮은 경고는 후처리에서 뺌 |
+| `spiderMinutes` | number 1~30 분 (고급) | 2 | 탐색 시간 (`-m`). AJAX Spider 를 켜면 같은 시간을 한 번 더 씀 |
+
+```powershell
+node bin/safescan.js scan "$HOME\Desktop\hackathon" -m owasp-zap -o owasp-zap.url=http://localhost:5000 -o owasp-zap.ajaxSpider=true -o owasp-zap.minRisk=low
+```
+
 ZAP 이미지가 없으면 처음 실행할 때 자동으로 pull합니다. 결과는 검사 대상 프로젝트의 `.safescan/runs/<runId>/run.json`에 저장됩니다.
 원본 ZAP JSON은 임시 폴더에서 파싱한 뒤 자동 삭제되므로, 원본 파일의 지속 보관이 필요하면 코어에 아티팩트 저장 API 추가를 별도로 요청해야 합니다.
 
@@ -47,7 +64,8 @@ python -m http.server 5100 --bind 0.0.0.0 --directory .\modules\owasp-zap\fixtur
 - ZAP의 10종 경고 등은 1종류=SafeScan Finding 1개로 반환합니다. 발생 위치 수는 `raw.occurrenceCount`에서 확인합니다.
 - 도구의 종료 코드 1/2는 탐지 경고로 인정하고 3 이상은 실행 오류로 처리합니다.
 - 위험도 매핑: ZAP high->high, medium->medium, low/info->low. 정보성 여부는 `raw.informational`에 표시합니다.
-- 신뢰도 매핑: ZAP false-positive=0.1, low=0.45, medium=0.65, high=0.85, confirmed=0.95. 이 수치는 스캐너의 탐지 수준 표현일 뿐 공격 성공 확률이 아닙니다.
+- 신뢰도 매핑: ZAP false-positive=0.1, low=0.45, medium=0.65, high=0.85, confirmed=0.95 (신뢰도 정보가 없으면 0.5). 이 수치는 스캐너의 탐지 수준 표현일 뿐 공격 성공 확률이 아닙니다. `module.json` 의 `criteria.confidence` 가 같은 구간입니다.
+- 벤치 (v0.2.0, ZAP stable 이미지): 재현율 100% (TP 1, 목록 밖 경고 8건은 `allowExtra` 라 오탐으로 세지 않음). 목표는 재현율 0.9 입니다.
 - 대부분의 웹서버 설정 경고는 OWASP A02:2025로 분류되지만, 별도 규칙별 분류 보강이 필요합니다.
 - ZAP Full Scan은 XSS/SQLi 등 일부 능동 검사를 하지만 JS 중심 DOM XSS, 접근 제어, 비즈니스 로직 취약점 전체를 검증하지 않습니다.
 - 로컬 Python `http.server`에서 검출된 헤더 경고는 실제 운영 서버와 다를 수 있습니다.

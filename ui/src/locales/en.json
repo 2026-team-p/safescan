@@ -10,7 +10,8 @@
   },
   "tab": {
     "scan": "Scan",
-    "issues": "Issues"
+    "issues": "Issues",
+    "history": "History"
   },
   "assistant": {
     "claude": "Claude connected",
@@ -144,7 +145,8 @@
     "clean": "No problems",
     "confidence": "Confidence {{value}}%",
     "details": "Details",
-    "titleRunning_one": "Scanning with {{count}} module"
+    "titleRunning_one": "Scanning with {{count}} module",
+    "eyebrowVerify": "Re-check complete"
   },
   "status": {
     "pending": "Waiting",
@@ -178,7 +180,14 @@
     "noFindings": "No problems found",
     "logs": "Logs from this module",
     "reason": "Reason",
-    "waitingResult": "Details appear here when the scan finishes"
+    "waitingResult": "Details appear here when the scan finishes",
+    "accuracy": "Accuracy",
+    "confidenceBands": "Confidence spread",
+    "options": "Options used",
+    "missed": "Missed answers",
+    "extra": "Not in the answer key (false positives)",
+    "benchNote": "Bench result for this module version ({{date}}). This scan had no answer key, so it wasn’t measured directly",
+    "noAccuracy": "Put a safescan.expected.json answer key in the project root to measure this scan’s accuracy"
   },
   "console": {
     "title": "Transparency console",
@@ -299,5 +308,115 @@
     "gap": "… {{count}} unchanged lines …",
     "changed_one": "{{count}} line changed",
     "gap_one": "… {{count}} unchanged line …"
+  },
+  "options": {
+    "title": "Options",
+    "none": "This module has no options to change",
+    "advanced": "{{count}} advanced options",
+    "advanced_one": "{{count}} advanced option",
+    "changed": "{{count}} changed from default",
+    "changedOne": "Changed",
+    "changedBadge": "{{count}} changed",
+    "reset": "Reset to defaults",
+    "required": "Required",
+    "on": "On",
+    "off": "Off",
+    "missing": "Needs {{option}} — the module is skipped while it’s empty",
+    "error": {
+      "number": "Enter a number",
+      "min": "Must be {{min}} or more",
+      "max": "Must be {{max}} or less",
+      "url": "Enter an address starting with http:// or https://"
+    }
+  },
+  "report": {
+    "title": "Scan metrics",
+    "confidence": "Avg. confidence",
+    "confidenceSub": "Average of {{count}} modules that ran",
+    "confidenceSub_one": "From the {{count}} module that ran",
+    "accuracy": "Accuracy",
+    "f1": "F1",
+    "precision": "Precision",
+    "recall": "Recall",
+    "byAnswerKey": "Based on the {{file}} answer key",
+    "byBench": "From module benches ({{count}}/{{total}} measured)",
+    "notMeasured": "No answer key or bench record, so not measured",
+    "findings": "Findings",
+    "duration": "Duration",
+    "modulesRan": "{{ran}} of {{total}} modules ran",
+    "ai": "AI model",
+    "noAi": "Not used",
+    "aiUsage": "{{calls}} calls · {{tokens}} tokens · {{cost}}",
+    "aiIdle": "{{model}} available (not called)",
+    "aiOff": "No AI for modules (no API key)",
+    "byModule": "Metrics by module",
+    "col": {
+      "module": "Module",
+      "status": "Status",
+      "findings": "Findings",
+      "confidence": "Confidence",
+      "accuracy": "Accuracy",
+      "duration": "Time",
+      "ai": "AI",
+      "options": "Options"
+    },
+    "counts": "Hit {{tp}} · False {{fp}} · Missed {{fn}}",
+    "benchTag": "Bench",
+    "optionsChanged": "{{count}} changed",
+    "optionsDefault": "Defaults",
+    "precisionPartial": "Precision {{value}} (from {{count}}/{{total}} modules)"
+  },
+  "history": {
+    "eyebrow": "History",
+    "title": "Scans and AI jobs",
+    "sub": "Compare confidence, accuracy, findings and AI usage across scans. Click a row for per-module metrics.",
+    "runs": "Scans",
+    "runCount": "{{count}} scans",
+    "runCount_one": "{{count}} scan",
+    "noRuns": "No scans yet",
+    "ai": "AI jobs",
+    "jobCount": "{{count}} jobs",
+    "jobCount_one": "{{count}} job",
+    "noJobs": "No AI jobs yet. Auto-configure and AI fixes show up here",
+    "recentJobs": "Recent jobs",
+    "verify": "Re-check",
+    "modulesRan": "{{ran}} of {{total}} modules ran",
+    "answerKey": "Answer key",
+    "issues": "Issues: {{created}} new · {{resolved}} resolved · {{open}} open",
+    "openRun": "Replay stages and logs",
+    "byModel": "By model",
+    "col": {
+      "model": "Handled by",
+      "jobs": "Requests",
+      "result": "Result",
+      "patches": "Patches",
+      "resolved": "Fixed on re-check",
+      "tokens": "Tokens",
+      "cost": "Cost",
+      "avg": "Avg. time"
+    },
+    "via": {
+      "claude": "Connected Claude session",
+      "api": "API key",
+      "rules": "Rule-based"
+    },
+    "jobsSplit": "Pick {{recommend}} · Patch {{patch}}",
+    "resultSplit": "Done {{done}} · Failed {{failed}} · Cancelled {{cancelled}}",
+    "patchSplit": "Applied {{accepted}} · Rejected {{rejected}}",
+    "kind": {
+      "recommend": "Module pick",
+      "patch": "Patch"
+    },
+    "outcome": {
+      "failed": "Failed",
+      "cancelled": "Cancelled",
+      "recommended": "Recommended",
+      "resolved": "Applied → fixed",
+      "stillFound": "Applied → still found",
+      "incomplete": "Applied → re-check incomplete",
+      "accepted": "Applied",
+      "rejected": "Rejected",
+      "proposed": "Not reviewed"
+    }
   }
 }

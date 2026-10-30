@@ -29,6 +29,7 @@ export default defineModule({
   async preprocess(ctx) {
     const url = checkTarget(ctx);
     const severity = parseSeverity(ctx.options.severity);
+    if (!severity.length) ctx.skip('검사할 위험도를 하나 이상 고르세요');
     const rateLimit = Number(ctx.options.rateLimit);
     if (!(rateLimit >= 1)) throw new Error('rateLimit 은 1 이상이어야 합니다');
 
@@ -57,6 +58,10 @@ export default defineModule({
 
     // 발견해도 종료 코드는 0 이지만, 버전에 따라 1 을 쓸 수 있어 정상으로 봅니다.
     const { stdout, stderr } = await ctx.exec('nuclei', args, { quiet: true, okExitCodes: [0, 1] });
+    // 위험도 · 태그 조건에 맞는 템플릿이 하나도 없으면 아무것도 검사하지 않은 것이므로 건너뜀으로 남깁니다.
+    if (!stdout.trim() && /no templates provided/i.test(stderr)) {
+      ctx.skip(`고른 위험도(${input.severity.join(',')}) · 태그에 맞는 템플릿이 없습니다${input.bundled ? ' (내장 템플릿은 주의 · 위험 등급)' : ''}`);
+    }
     return { stdout, stderr };
   },
 
@@ -89,7 +94,7 @@ export default defineModule({
 function checkTarget(ctx) {
   const given = ctx.options.targetUrl;
   if (typeof given !== 'string' || !given.trim()) {
-    ctx.skip('검사할 서버 주소가 없습니다 (예: -o nuclei-web.targetUrl=http://localhost:3000)');
+    ctx.skip('검사할 서버 주소가 없습니다. 검사 설정에서 서버 주소를 넣으세요 (CLI: -o nuclei-web.targetUrl=http://localhost:3000)');
   }
   let url;
   try {
@@ -105,9 +110,10 @@ function checkTarget(ctx) {
   return url.origin + (url.pathname === '/' ? '' : url.pathname);
 }
 
+/** severity 는 여러 개 고르기(배열)입니다. 예전 설정 · 직접 호출을 위해 쉼표 문자열도 받습니다. */
 function parseSeverity(value) {
-  const list = String(value ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
-  if (!list.length) throw new Error('severity 에 위험도를 하나 이상 적어야 합니다');
+  const list = (Array.isArray(value) ? value : String(value ?? '').split(','))
+    .map((s) => String(s).trim().toLowerCase()).filter(Boolean);
   const bad = list.filter((s) => !NUCLEI_SEVERITIES.includes(s));
   if (bad.length) throw new Error(`severity 값이 올바르지 않습니다: ${bad.join(', ')} (${NUCLEI_SEVERITIES.join(' | ')})`);
   return [...new Set(list)];

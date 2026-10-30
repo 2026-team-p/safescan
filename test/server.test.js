@@ -20,6 +20,7 @@ const mockAi = createAiProvider({
     if (req.purpose === '모듈 자동 추천') {
       return JSON.stringify({ selected: ['fake-eval', 'no-such-module'], reasoning: '이 프로젝트는 express 서버로 판단됩니다. eval 검사를 켭니다.' });
     }
+    if (req.purpose === '설명 보강') return JSON.stringify({ label: '분류됨' });
     const file = /```\n([\s\S]*)\n```/.exec(req.prompt)[1];
     return JSON.stringify({ explanation: 'eval 을 JSON.parse 로 바꿨습니다.', content: file.replace('eval(', 'JSON.parse(') });
   },
@@ -151,6 +152,63 @@ test('그 사이 파일이 바뀌면 수정안을 적용하지 않는다', async
   const accepted = await json(`/api/issues/${issue.id}/patch/${job.result.patch.id}/accept`, {});
   assert.equal(accepted.status, 409);
   assert.equal(await readFile(join(work, 'src', 'again.js'), 'utf8'), 'module.exports = eval("2");\n');
+});
+
+test('모듈 옵션: 저장한 값이 검사에 쓰이고, 기본값으로 되돌리면 저장 파일에서 빠진다', async () => {
+  assert.equal((await json('/api/settings/options', { moduleId: 'fake-ok', options: { nope: 1 } })).status, 400);
+  const saved = await json('/api/settings/options', { moduleId: 'fake-ok', options: { label: '저장값' } });
+  assert.deepEqual(saved.data.options, { label: '저장값' });
+  assert.deepEqual((await json('/api/state')).data.settings.options['fake-ok'], { label: '저장값' });
+
+  const { data } = await json('/api/runs', { modules: ['fake-ok'] });
+  const end = (await untilClosed(data.runId)).find((e) => e.type === 'run:end');
+  assert.deepEqual(end.result.modules[0].options, { label: '저장값' });
+  const override = await json('/api/runs', { modules: ['fake-ok'], options: { 'fake-ok': { label: '이번만' } } });
+  const end2 = (await untilClosed(override.data.runId)).find((e) => e.type === 'run:end');
+  assert.deepEqual(end2.result.modules[0].options, { label: '이번만' }, '요청 값이 저장 값보다 우선');
+
+  await json('/api/settings/options', { moduleId: 'fake-ok', options: { label: '기본' } });
+  assert.equal((await json('/api/state')).data.settings.options['fake-ok'], undefined);
+});
+
+test('기록: 검사별 수치 요약 · 지난 검사 상세 · AI 작업과 모델별 수치', async () => {
+  const { runs, aiJobs, models } = (await json('/api/history')).data;
+  const scans = runs.filter((r) => r.modules.some((m) => m.id === 'fake-ok'));
+  assert.ok(scans.length >= 2);
+  const row = scans.at(-1);
+  assert.equal(row.kind, 'scan');
+  assert.equal(row.findings, 2);
+  assert.equal(row.confidence, 0.75);
+  assert.deepEqual(row.aiModels, ['claude-haiku-5-5']);
+  assert.ok(row.tokens > 0 && row.costUsd > 0);
+  assert.ok(runs.some((r) => r.kind === 'verify'), '수정 후 재검사도 기록에 남는다');
+
+  const detail = (await json(`/api/runs/${row.runId}`)).data;
+  assert.equal(detail.result.runId, row.runId);
+  assert.ok('fake-ok' in detail.bench);
+  assert.equal((await json('/api/runs/20200101-000000-0000')).status, 404);
+
+  // 서버를 다시 켜 메모리에 없는 지난 검사도 저장된 이벤트로 다시 볼 수 있다
+  const again = await startServer({ projectRoot: work, port: 0, modulesDir: join(FIXTURES, 'modules'), aiProvider: mockAi, uiDir: join(work, 'no-ui') });
+  try {
+    const text = await fetch(`${again.url}/api/runs/${row.runId}/events?token=${again.token}`).then((r) => r.text());
+    const types = text.trim().split('\n\n').map((b) => JSON.parse(b.split('\n').find((l) => l.startsWith('data: ')).slice(6)).type);
+    assert.equal(types[0], 'run:start');
+    assert.ok(types.includes('run:end'));
+    assert.equal(types.at(-1), 'run:closed');
+    assert.equal((await fetch(`${again.url}/api/runs/20200101-000000-0000/events?token=${again.token}`)).status, 404);
+  } finally {
+    await again.close();
+  }
+
+  const patch = aiJobs.find((j) => j.kind === 'patch' && j.consumed === 'accepted');
+  assert.equal(patch.via, 'api');
+  assert.equal(patch.model, 'claude-haiku-5-5');
+  assert.equal(patch.verify, 'resolved');
+  assert.equal(patch.moduleId, 'fake-eval');
+  assert.ok(aiJobs.some((j) => j.kind === 'recommend' && j.status === 'done'));
+  const stat = models.find((m) => m.via === 'api');
+  assert.ok(stat.patch >= 2 && stat.accepted === 1 && stat.resolved === 1 && stat.costUsd > 0);
 });
 
 test('비밀 값 가리기: 지정한 줄의 문자열만 자리 표시자로 바꾸고 되돌린다', () => {

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -76,6 +76,33 @@ test('모듈 옵션은 기본값 위에 덮이고, 정의되지 않은 옵션은
   assert.equal(ok.mod('fake-ok').findings[0].title, '가짜 분류됨 사용자');
   const bad = await scan(['fake-ok'], { options: { 'fake-ok': { nope: 1 } } });
   assert.equal(bad.mod('fake-ok').status, 'failed');
+});
+
+test('실행 결과에 쓴 옵션 · 검사 종류 · AI 정보를 남긴다', async () => {
+  const { result, mod } = await scan(['fake-ok'], { options: { 'fake-ok': { label: '사용자' } }, kind: 'verify' });
+  assert.deepEqual(mod('fake-ok').options, { label: '사용자' });
+  assert.equal(result.kind, 'verify');
+  assert.deepEqual(result.ai, { available: true, provider: 'mock', model: 'claude-haiku-5-5' });
+  assert.equal(mod('fake-ok').accuracy, undefined, '정답표가 없으면 정확도를 재지 않는다');
+});
+
+test('프로젝트 정답표(safescan.expected.json)가 있으면 이번 검사의 정확도를 잰다', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'safescan-expected-'));
+  try {
+    await cp(PROJECT, root, { recursive: true });
+    await writeFile(join(root, 'safescan.expected.json'), JSON.stringify({
+      modules: { 'fake-ok': { findings: [{ ruleId: 'fake.xss', file: 'src/app.js', line: 3 }, { ruleId: 'fake.missing' }] } },
+    }));
+    const { result, mod } = await scan(['fake-ok', 'fake-skip'], { projectRoot: root });
+    const a = mod('fake-ok').accuracy;
+    assert.equal(result.expectedFile, 'safescan.expected.json');
+    assert.deepEqual([a.source, a.tp, a.fp, a.fn, a.precision, a.recall, a.f1], ['project', 1, 1, 1, 0.5, 0.5, 0.5]);
+    assert.deepEqual(a.missed, [{ ruleId: 'fake.missing' }]);
+    assert.equal(a.extra[0].ruleId, 'fake.low');
+    assert.equal(mod('fake-skip').accuracy, undefined, '정답표에 없는 모듈 · 건너뛴 모듈은 재지 않는다');
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test('한 모듈의 실패 · 건너뜀이 다른 모듈에 영향을 주지 않는다', async () => {

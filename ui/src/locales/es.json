@@ -10,7 +10,8 @@
   },
   "tab": {
     "scan": "Análisis",
-    "issues": "Incidencias"
+    "issues": "Incidencias",
+    "history": "Historial"
   },
   "assistant": {
     "claude": "Claude conectado",
@@ -145,7 +146,8 @@
     "confidence": "Confianza {{value}}%",
     "details": "Detalles",
     "findings_one": "{{count}} encontrado",
-    "titleRunning_one": "Analizando con {{count}} módulo"
+    "titleRunning_one": "Analizando con {{count}} módulo",
+    "eyebrowVerify": "Revisión terminada"
   },
   "status": {
     "pending": "En espera",
@@ -179,7 +181,14 @@
     "noFindings": "No se encontraron problemas",
     "logs": "Registros de este módulo",
     "reason": "Motivo",
-    "waitingResult": "Los detalles aparecerán aquí cuando termine el análisis"
+    "waitingResult": "Los detalles aparecerán aquí cuando termine el análisis",
+    "accuracy": "Exactitud",
+    "confidenceBands": "Distribución de confianza",
+    "options": "Opciones usadas",
+    "missed": "Respuestas omitidas",
+    "extra": "Fuera de la clave de respuestas (falsos positivos)",
+    "benchNote": "Resultado del banco de pruebas para esta versión del módulo ({{date}}). Este análisis no tenía clave de respuestas, así que no se midió directamente",
+    "noAccuracy": "Coloca una clave de respuestas safescan.expected.json en la raíz del proyecto para medir la exactitud de este análisis"
   },
   "console": {
     "title": "Consola de transparencia",
@@ -300,5 +309,117 @@
     "gap": "… {{count}} líneas iguales …",
     "changed_one": "{{count}} línea cambiada",
     "gap_one": "… {{count}} línea igual …"
+  },
+  "options": {
+    "title": "Opciones",
+    "none": "Este módulo no tiene opciones que cambiar",
+    "advanced": "{{count}} opciones avanzadas",
+    "advanced_one": "{{count}} opción avanzada",
+    "changed": "{{count}} cambiadas respecto al valor por defecto",
+    "changed_one": "{{count}} cambiada respecto al valor por defecto",
+    "changedOne": "Cambiada",
+    "changedBadge": "{{count}} cambiadas",
+    "changedBadge_one": "{{count}} cambiada",
+    "reset": "Restablecer",
+    "required": "Obligatoria",
+    "on": "Activada",
+    "off": "Desactivada",
+    "missing": "Falta {{option}}: el módulo se omite mientras esté vacía",
+    "error": {
+      "number": "Escribe un número",
+      "min": "Debe ser {{min}} o más",
+      "max": "Debe ser {{max}} o menos",
+      "url": "Escribe una dirección que empiece por http:// o https://"
+    }
+  },
+  "report": {
+    "title": "Métricas del análisis",
+    "confidence": "Confianza media",
+    "confidenceSub": "Media de {{count}} módulos ejecutados",
+    "confidenceSub_one": "Del {{count}} módulo ejecutado",
+    "accuracy": "Exactitud",
+    "f1": "F1",
+    "precision": "Precisión",
+    "recall": "Exhaustividad",
+    "byAnswerKey": "Según la clave de respuestas {{file}}",
+    "byBench": "Según los bancos de pruebas ({{count}}/{{total}} medidos)",
+    "notMeasured": "Sin clave de respuestas ni banco de pruebas: no se midió",
+    "findings": "Hallazgos",
+    "duration": "Duración",
+    "modulesRan": "{{ran}} de {{total}} módulos ejecutados",
+    "ai": "Modelo de IA",
+    "noAi": "Sin uso",
+    "aiUsage": "{{calls}} llamadas · {{tokens}} tokens · {{cost}}",
+    "aiIdle": "{{model}} disponible (sin llamadas)",
+    "aiOff": "Los módulos no tienen IA (sin clave de API)",
+    "byModule": "Métricas por módulo",
+    "col": {
+      "module": "Módulo",
+      "status": "Estado",
+      "findings": "Hallazgos",
+      "confidence": "Confianza",
+      "accuracy": "Exactitud",
+      "duration": "Tiempo",
+      "ai": "IA",
+      "options": "Opciones"
+    },
+    "counts": "Aciertos {{tp}} · Falsos {{fp}} · Omitidos {{fn}}",
+    "benchTag": "Banco",
+    "optionsChanged": "{{count}} cambiadas",
+    "optionsChanged_one": "{{count}} cambiada",
+    "optionsDefault": "Por defecto",
+    "precisionPartial": "Precisión {{value}} (de {{count}}/{{total}} módulos)"
+  },
+  "history": {
+    "eyebrow": "Historial",
+    "title": "Análisis y tareas de IA",
+    "sub": "Compara confianza, exactitud, hallazgos y uso de IA entre análisis. Pulsa una fila para ver las métricas por módulo.",
+    "runs": "Análisis",
+    "runCount": "{{count}} análisis",
+    "noRuns": "Todavía no hay análisis",
+    "ai": "Tareas de IA",
+    "jobCount": "{{count}} tareas",
+    "jobCount_one": "{{count}} tarea",
+    "noJobs": "Todavía no hay tareas de IA. La configuración automática y las correcciones con IA aparecen aquí",
+    "recentJobs": "Tareas recientes",
+    "verify": "Revisión",
+    "modulesRan": "{{ran}} de {{total}} módulos ejecutados",
+    "answerKey": "Clave de respuestas",
+    "issues": "Incidencias: {{created}} nuevas · {{resolved}} resueltas · {{open}} abiertas",
+    "openRun": "Ver de nuevo etapas y registros",
+    "byModel": "Por modelo",
+    "col": {
+      "model": "Atendido por",
+      "jobs": "Solicitudes",
+      "result": "Resultado",
+      "patches": "Parches",
+      "resolved": "Resuelto al revisar",
+      "tokens": "Tokens",
+      "cost": "Coste",
+      "avg": "Tiempo medio"
+    },
+    "via": {
+      "claude": "Sesión de Claude conectada",
+      "api": "Clave de API",
+      "rules": "Basado en reglas"
+    },
+    "jobsSplit": "Selección {{recommend}} · Parche {{patch}}",
+    "resultSplit": "Hechas {{done}} · Fallidas {{failed}} · Canceladas {{cancelled}}",
+    "patchSplit": "Aplicados {{accepted}} · Rechazados {{rejected}}",
+    "kind": {
+      "recommend": "Selección de módulos",
+      "patch": "Parche"
+    },
+    "outcome": {
+      "failed": "Fallida",
+      "cancelled": "Cancelada",
+      "recommended": "Recomendado",
+      "resolved": "Aplicado → resuelto",
+      "stillFound": "Aplicado → sigue apareciendo",
+      "incomplete": "Aplicado → revisión incompleta",
+      "accepted": "Aplicado",
+      "rejected": "Rechazado",
+      "proposed": "Sin revisar"
+    }
   }
 }

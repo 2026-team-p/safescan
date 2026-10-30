@@ -62,8 +62,17 @@ export interface ModuleManifest {
   timeoutSec?: number;
   /** 이 모듈의 수치 검증 기준. 화면의 모듈 상세에 "기준 대비 실제"로 표시됩니다. */
   criteria?: ModuleCriteria;
-  /** 화면 언어별 번역. 없으면 기본(한국어) name · description 을 씁니다. 예: { "en": { "name": "...", "description": "..." } } */
-  i18n?: Record<string, { name?: string; description?: string; criteria?: string[] }>;
+  /** 화면 언어별 번역. 없으면 기본(한국어) 값을 씁니다. 예: { "en": { "name": "...", "description": "..." } } */
+  i18n?: Record<string, ModuleTranslation>;
+}
+
+export interface ModuleTranslation {
+  name?: string;
+  description?: string;
+  /** criteria.confidence 와 같은 순서의 구간 이름 */
+  criteria?: string[];
+  /** 옵션 키별 화면 문구 */
+  options?: Record<string, { label?: string; description?: string; placeholder?: string; unit?: string; choiceLabels?: Record<string, string> }>;
 }
 
 export interface ModuleCriteria {
@@ -82,13 +91,38 @@ export interface Requirement {
   install: string;
 }
 
+/** 옵션 값. multi 는 고른 선택지의 배열입니다. */
+export type OptionValue = string | number | boolean | string[];
+
+/**
+ * 검사 설정 화면에서 모듈마다 바꿀 수 있는 옵션.
+ * 사용자가 고른 값은 프로젝트의 .safescan/settings.json 에 저장되어 화면 · CLI · Claude(run_scan) 검사에 함께 쓰입니다.
+ */
 export interface OptionSpec {
-  type: 'string' | 'number' | 'boolean' | 'enum';
+  /** enum: 하나 고르기, multi: 여러 개 고르기 */
+  type: 'string' | 'number' | 'boolean' | 'enum' | 'multi';
   label: string;
   description?: string;
-  default?: string | number | boolean;
-  /** type 이 enum 일 때 선택지 */
+  default?: OptionValue;
+  /** enum · multi 의 선택지 */
   choices?: string[];
+  /** 선택지 값별 화면 이름. 예: { "baseline": "기본 (요청만 관찰)" } */
+  choiceLabels?: Record<string, string>;
+  /** number: 허용 범위와 단위 (단위는 화면 표시용) */
+  min?: number;
+  max?: number;
+  step?: number;
+  unit?: string;
+  /** string: 입력 예시 */
+  placeholder?: string;
+  /** string: 값의 형식. url 이면 http(s) 주소만 받습니다 (빈 값은 허용) */
+  format?: 'url';
+  /** 값이 없으면 모듈이 건너뛰는 옵션. 화면이 검사 전에 알려 줍니다 */
+  required?: boolean;
+  /** 다른 옵션이 이 값일 때만 화면에 보입니다. 예: { "mode": "full" } */
+  when?: Record<string, string | number | boolean>;
+  /** 자주 바꾸지 않는 옵션. 화면에서 "고급" 아래에 둡니다 */
+  advanced?: boolean;
 }
 
 // ───────────────────────────── 결과 형식 (Finding) ─────────────────────────────
@@ -181,7 +215,7 @@ export interface ModuleContext {
   readonly module: { id: string; dir: string; manifest: ModuleManifest };
   readonly project: ProjectApi;
   /** manifest.options 기본값 위에 사용자 값이 덮인 결과 */
-  readonly options: Record<string, string | number | boolean>;
+  readonly options: Record<string, OptionValue>;
   /** 이 모듈 전용 임시 폴더 (실행 후 삭제됨) */
   readonly tmpDir: string;
   /** 제한 시간 초과 · 사용자 취소 시 abort 됩니다. */
@@ -345,15 +379,57 @@ export interface ModuleRunResult {
   metrics: ModuleMetrics;
   aiCalls: AiCallRecord[];
   execCalls: ExecCallRecord[];
+  /** 이 실행에 쓴 옵션 (기본값 포함) */
+  options: Record<string, OptionValue>;
+  /** 프로젝트에 정답표(safescan.expected.json)가 있고 이 모듈 항목이 있을 때, 이 실행의 정확도 */
+  accuracy?: RunAccuracy;
+}
+
+/** 정답표와 비교한 정확도. fp · precision 은 allowExtra 이면 계산하지 않습니다 (null). */
+export interface RunAccuracy {
+  source: 'project' | 'bench';
+  tp: number;
+  fp: number | null;
+  fn: number;
+  precision: number | null;
+  recall: number | null;
+  f1: number | null;
+  /** 찾지 못한 정답 항목 */
+  missed?: ExpectedFinding[];
+  /** 정답표에 없는 결과 (allowExtra 가 아닐 때 오탐) */
+  extra?: { ruleId: string; file?: string; line?: number; title: string }[];
+}
+
+/** 정답 항목. 적은 키만 비교하고 line 은 ±2줄까지 같은 것으로 봅니다. */
+export interface ExpectedFinding {
+  ruleId?: string;
+  file?: string;
+  line?: number;
+  severity?: Severity;
+  dependency?: string;
+}
+
+/** 정답표: 모듈 fixtures/expected.json, 또는 프로젝트 루트의 safescan.expected.json 의 modules[id] */
+export interface ExpectedSet {
+  description?: string;
+  /** true 면 목록에 없는 결과를 오탐으로 세지 않습니다 (정밀도 계산 안 함) */
+  allowExtra?: boolean;
+  findings: ExpectedFinding[];
 }
 
 export interface RunResult {
   runId: string;
+  /** scan: 일반 검사, verify: 수정안 적용 뒤 재검사 */
+  kind?: 'scan' | 'verify';
   projectRoot: string;
   startedAt: string;
   finishedAt: string;
   profile: ProjectProfile;
   modules: ModuleRunResult[];
+  /** 모듈이 쓸 수 있었던 AI (API 키 방식). 없으면 available: false */
+  ai?: { available: boolean; provider: string; model: string | null };
+  /** 정답표를 썼으면 그 파일 (프로젝트 루트 기준) */
+  expectedFile?: string;
   /** 결과를 저장한 실행이면 이슈 저장소 반영 결과 */
   issues?: IssueSyncSummary;
 }

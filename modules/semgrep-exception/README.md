@@ -19,10 +19,21 @@ OWASP A10:2025 (Mishandling of Exceptional Conditions).
 ## 단계별 동작
 | 단계 | 하는 일 | AI |
 |---|---|---|
-| 전처리 | `findFiles` 로 소스 파일 수집 (`.safescanignore` 적용). 없으면 건너뜀 | 없음 |
+| 전처리 | `findFiles` 로 고른 언어(`languages`)의 소스 파일 수집 (`.safescanignore` 적용, `excludeTests` 면 테스트 파일 제외). 없으면 건너뜀 | 없음 |
 | 툴 | 파일을 100개씩 나눠 `semgrep scan --json --config rules/` 실행 | - |
-| 후처리 | 결과 1건 = Finding 1건. 코드 줄은 소스에서 직접 읽어 `snippet` 으로 채움 | 없음 |
-| 검증 | Semgrep 오류 0건인지, 원본 결과 수와 Finding 수가 같은지 확인 | 없음 |
+| 후처리 | 결과 1건 = Finding 1건. 코드 줄은 소스에서 직접 읽어 `snippet` 으로 채움. 고르지 않은 종류(`checks`)의 결과는 뺌 | 없음 |
+| 검증 | Semgrep 오류 0건인지, 원본 결과 수 = Finding 수 + 고르지 않은 종류 수인지 확인 | 없음 |
+
+## 옵션
+| 키 | 타입 | 기본 | 설명 |
+|---|---|---|---|
+| `languages` | multi `javascript` · `typescript` · `python` · `java` | 모두 | 검사할 언어. JavaScript = `.js` `.jsx` `.mjs` `.cjs`, TypeScript = `.ts` `.tsx`. 하나도 고르지 않으면 건너뜀 |
+| `checks` | multi `empty-catch` · `stack-trace` · `fail-open` | 모두 | 찾을 결함. 규칙의 CWE 로 나눔: 빈 catch · except = CWE-390, 스택 트레이스 노출(`printStackTrace` 포함) = CWE-209, fail-open = CWE-636. 빈 catch 는 일부러 무시하는 코드도 잡혀 결과가 많을 수 있으므로 빼고 볼 수 있습니다 |
+| `excludeTests` | boolean | false | `test` · `tests` · `__tests__` · `__mocks__` · `spec` · `e2e` · `testdata` 폴더와 `*.test.*` · `*.spec.*` · `test_*.py` · `*_test.py` · `conftest.py` · `*Test.java` · `*IT.java` 파일은 Semgrep 에 넘기지 않음 |
+
+```bash
+safescan scan ./my-app -m semgrep-exception -o semgrep-exception.checks=stack-trace,fail-open
+```
 
 ## 위험도 매핑
 | Semgrep | SafeScan | 해당 규칙 |
@@ -34,7 +45,7 @@ OWASP A10:2025 (Mishandling of Exceptional Conditions).
 가이드의 "빈 catch 는 `low`" 기준을 따랐고, 이 모듈은 `critical` 을 내지 않습니다.
 
 ## 신뢰도 기준
-규칙 `metadata.confidence` 를 옮깁니다: HIGH 0.85 · MEDIUM 0.6 · LOW 0.4 (없으면 0.5).
+규칙 `metadata.confidence` 를 옮깁니다: HIGH 0.85 · MEDIUM 0.6 · LOW 0.4 (없으면 0.5). `module.json` 의 `criteria.confidence` 가 같은 구간입니다.
 - HIGH: 코드 모양만으로 확정되는 패턴 (빈 catch, 스택을 응답에 넣기)
 - MEDIUM: fail-open — 함수 **이름**으로 인증 · 검증 함수를 추정하므로 오탐이 있을 수 있음
 
@@ -51,3 +62,10 @@ OWASP A10:2025 (Mishandling of Exceptional Conditions).
 ## 벤치
 `fixtures/vulnerable` 에 JS · Python · Java 결함 9건과, 같은 파일의 안전한 코드(로그 남기기 · 일반 메시지 · 오류 시 거부)를 두었습니다.
 `allowExtra: false` 라서 안전한 코드를 잡으면 오탐으로 계산됩니다.
+
+| 버전 | 정밀도 | 재현율 | F1 |
+|---|---|---|---|
+| 0.1.0 | 100% | 100% | 100% (TP 9 · FP 0 · FN 0) |
+| 0.2.0 | 100% | 100% | 100% (TP 9 · FP 0 · FN 0) |
+
+`criteria.accuracy` 목표는 정밀도 · 재현율 0.9 입니다 (Semgrep 1.183.0).

@@ -43,13 +43,24 @@ i18n.on('languageChanged', (lng) => {
   } catch { /* 다음 방문에 기억하지 못할 뿐 */ }
 });
 
-/** 모듈 이름 · 설명 · 신뢰도 구간 이름을 화면 언어로 (module.json 의 i18n, 없으면 기본값) */
+/** 모듈 이름 · 설명 · 신뢰도 구간 이름 · 옵션 문구를 화면 언어로 (module.json 의 i18n, 없으면 기본값) */
 export function localizeModule(module, lang) {
   const t = module?.i18n?.[lang] ?? module?.i18n?.[lang?.slice(0, 2)] ?? {};
   return {
     name: t.name ?? module.name,
     description: t.description ?? module.description,
     criteriaLabel: (i, fallback) => t.criteria?.[i] ?? fallback,
+    option: (key) => {
+      const spec = module.options?.[key] ?? {};
+      const o = t.options?.[key] ?? {};
+      return {
+        label: o.label ?? spec.label ?? key,
+        description: o.description ?? spec.description,
+        placeholder: o.placeholder ?? spec.placeholder,
+        unit: o.unit ?? spec.unit,
+        choice: (value) => o.choiceLabels?.[value] ?? spec.choiceLabels?.[value] ?? value,
+      };
+    },
   };
 }
 

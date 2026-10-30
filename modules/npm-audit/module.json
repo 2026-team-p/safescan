@@ -1,7 +1,7 @@
 {
   "id": "npm-audit",
   "name": "npm 의존성 취약점 검사",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "package-lock.json 에 고정된 npm 패키지 중 공개된 보안 권고(GitHub Advisory)에 해당하는 버전을 찾습니다.",
   "category": "dependency",
   "owasp": ["A03:2025"],
@@ -18,10 +18,24 @@
   "appliesWhen": { "files": ["package-lock.json", "npm-shrinkwrap.json"] },
   "ai": "none",
   "options": {
+    "minSeverity": {
+      "type": "enum",
+      "label": "보고할 최소 위험도",
+      "description": "이보다 낮은 위험도의 권고는 결과에서 뺍니다",
+      "choices": ["low", "medium", "high", "critical"],
+      "choiceLabels": { "low": "참고 이상 (전체)", "medium": "주의 이상", "high": "위험 이상", "critical": "크리티컬만" },
+      "default": "low"
+    },
     "omitDev": {
       "type": "boolean",
       "label": "개발 의존성 제외",
-      "description": "devDependencies 는 검사하지 않습니다 (배포물만 확인할 때)",
+      "description": "devDependencies 는 검사하지 않습니다 (배포물에 들어가는 패키지만 확인할 때)",
+      "default": false
+    },
+    "directOnly": {
+      "type": "boolean",
+      "label": "직접 의존성만",
+      "description": "package.json 에 직접 적은 패키지의 권고만 보여 줍니다. 다른 패키지를 거쳐 설치된 패키지의 권고는 뺍니다",
       "default": false
     }
   },
@@ -37,22 +51,92 @@
     "en": {
       "name": "npm dependency vulnerabilities",
       "description": "Finds npm packages pinned in package-lock.json whose versions match published security advisories (GitHub Advisory).",
-      "criteria": ["Direct dependency", "Transitive dependency"]
+      "criteria": ["Direct dependency", "Transitive dependency"],
+      "options": {
+        "minSeverity": {
+          "label": "Minimum severity to report",
+          "description": "Advisories below this severity are left out of the results.",
+          "choiceLabels": {
+            "low": "Low and above (all)",
+            "medium": "Medium and above",
+            "high": "High and above",
+            "critical": "Critical only"
+          }
+        },
+        "omitDev": {
+          "label": "Exclude dev dependencies",
+          "description": "Skips devDependencies (when you only want to check packages that ship to production)."
+        },
+        "directOnly": {
+          "label": "Direct dependencies only",
+          "description": "Shows only advisories for packages listed directly in package.json. Advisories for packages pulled in by other packages are left out."
+        }
+      }
     },
     "ja": {
       "name": "npm 依存関係の脆弱性検査",
       "description": "package-lock.json に固定された npm パッケージのうち、公開されたセキュリティ勧告（GitHub Advisory）に該当するバージョンを検出します。",
-      "criteria": ["直接依存", "間接依存"]
+      "criteria": ["直接依存", "間接依存"],
+      "options": {
+        "minSeverity": {
+          "label": "報告する最低の深刻度",
+          "description": "これより低い深刻度の勧告は結果から除きます。",
+          "choiceLabels": { "low": "低以上（すべて）", "medium": "中以上", "high": "高以上", "critical": "クリティカルのみ" }
+        },
+        "omitDev": {
+          "label": "開発用依存関係を除外",
+          "description": "devDependencies は検査しません（本番に含まれるパッケージだけを確認したいとき）。"
+        },
+        "directOnly": {
+          "label": "直接依存のみ",
+          "description": "package.json に直接書いたパッケージの勧告だけを表示します。他のパッケージ経由でインストールされたパッケージの勧告は除きます。"
+        }
+      }
     },
     "es": {
       "name": "Vulnerabilidades de dependencias npm",
       "description": "Detecta paquetes npm fijados en package-lock.json cuyas versiones coinciden con avisos de seguridad publicados (GitHub Advisory).",
-      "criteria": ["Dependencia directa", "Dependencia transitiva"]
+      "criteria": ["Dependencia directa", "Dependencia transitiva"],
+      "options": {
+        "minSeverity": {
+          "label": "Gravedad mínima a reportar",
+          "description": "Los avisos por debajo de esta gravedad no se incluyen en los resultados.",
+          "choiceLabels": {
+            "low": "Baja o superior (todos)",
+            "medium": "Media o superior",
+            "high": "Alta o superior",
+            "critical": "Solo crítica"
+          }
+        },
+        "omitDev": {
+          "label": "Excluir dependencias de desarrollo",
+          "description": "No analiza devDependencies (cuando solo quieres revisar los paquetes que llegan a producción)."
+        },
+        "directOnly": {
+          "label": "Solo dependencias directas",
+          "description": "Muestra solo los avisos de paquetes declarados directamente en package.json. Se omiten los de paquetes instalados a través de otros paquetes."
+        }
+      }
     },
     "zh": {
       "name": "npm 依赖漏洞检查",
       "description": "找出 package-lock.json 中锁定的版本命中公开安全公告（GitHub Advisory）的 npm 包。",
-      "criteria": ["直接依赖", "间接依赖"]
+      "criteria": ["直接依赖", "间接依赖"],
+      "options": {
+        "minSeverity": {
+          "label": "报告的最低严重程度",
+          "description": "低于此严重程度的公告不计入结果。",
+          "choiceLabels": { "low": "低及以上（全部）", "medium": "中及以上", "high": "高及以上", "critical": "仅严重" }
+        },
+        "omitDev": {
+          "label": "排除开发依赖",
+          "description": "不检查 devDependencies（只想检查会发布到生产环境的包时）。"
+        },
+        "directOnly": {
+          "label": "仅直接依赖",
+          "description": "只显示 package.json 中直接声明的包的公告，通过其他包间接安装的包的公告不显示。"
+        }
+      }
     }
   }
 }

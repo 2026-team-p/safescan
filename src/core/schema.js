@@ -6,7 +6,7 @@ const ID_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const SEMVER_RE = /^\d+\.\d+\.\d+(-[\w.]+)?$/;
 const OWASP_RE = /^A(0[1-9]|10):20\d\d$/;
 const CWE_RE = /^CWE-\d+$/;
-const OPTION_TYPES = ['string', 'number', 'boolean', 'enum'];
+const OPTION_TYPES = ['string', 'number', 'boolean', 'enum', 'multi'];
 const MANIFEST_KEYS = new Set([
   'id', 'name', 'version', 'description', 'category', 'owasp', 'cwe', 'status',
   'tool', 'requires', 'appliesWhen', 'ai', 'options', 'timeoutSec', 'criteria', 'i18n',
@@ -61,11 +61,7 @@ export function validateManifest(m, folderName) {
   if (m.ai !== undefined && !AI_USAGES.includes(m.ai)) errors.push(`ai 는 ${AI_USAGES.join(' | ')} 중 하나여야 합니다`);
   if (m.options !== undefined) {
     if (!m.options || typeof m.options !== 'object') errors.push('options 는 객체여야 합니다');
-    else for (const [key, spec] of Object.entries(m.options)) {
-      if (!spec || !OPTION_TYPES.includes(spec.type)) errors.push(`options.${key}.type 은 ${OPTION_TYPES.join(' | ')} 중 하나여야 합니다`);
-      if (!spec || !isStr(spec.label)) errors.push(`options.${key}.label 이 필요합니다`);
-      if (spec?.type === 'enum' && !isStrArray(spec.choices)) errors.push(`options.${key}.choices 가 필요합니다`);
-    }
+    else for (const [key, spec] of Object.entries(m.options)) errors.push(...validateOptionSpec(key, spec, m.options));
   }
   if (m.timeoutSec !== undefined && !(Number.isFinite(m.timeoutSec) && m.timeoutSec > 0)) {
     errors.push('timeoutSec 는 양수여야 합니다');
@@ -73,6 +69,76 @@ export function validateManifest(m, folderName) {
   if (m.criteria !== undefined) errors.push(...validateCriteria(m.criteria));
   if (m.i18n !== undefined) errors.push(...validateI18n(m.i18n));
   return errors;
+}
+
+function validateOptionSpec(key, spec, all) {
+  const at = `options.${key}`;
+  if (!spec || typeof spec !== 'object') return [`${at} 는 객체여야 합니다`];
+  const errors = [];
+  if (!OPTION_TYPES.includes(spec.type)) errors.push(`${at}.type 은 ${OPTION_TYPES.join(' | ')} 중 하나여야 합니다`);
+  if (!isStr(spec.label)) errors.push(`${at}.label 이 필요합니다`);
+  const hasChoices = spec.type === 'enum' || spec.type === 'multi';
+  if (hasChoices && !isStrArray(spec.choices)) errors.push(`${at}.choices 가 필요합니다`);
+  if (spec.choiceLabels !== undefined && !(spec.choiceLabels && typeof spec.choiceLabels === 'object' && Object.values(spec.choiceLabels).every(isStr))) {
+    errors.push(`${at}.choiceLabels 는 { 선택지: 이름 } 객체여야 합니다`);
+  }
+  for (const k of ['min', 'max', 'step']) {
+    if (spec[k] !== undefined && !(spec.type === 'number' && Number.isFinite(spec[k]))) errors.push(`${at}.${k} 는 number 옵션의 숫자여야 합니다`);
+  }
+  if (spec.format !== undefined && !(spec.type === 'string' && spec.format === 'url')) errors.push(`${at}.format 은 string 옵션의 'url' 만 됩니다`);
+  if (spec.when !== undefined) {
+    if (!spec.when || typeof spec.when !== 'object') errors.push(`${at}.when 은 { 옵션: 값 } 객체여야 합니다`);
+    else for (const other of Object.keys(spec.when)) if (!all[other] || other === key) errors.push(`${at}.when.${other}: 같은 모듈의 다른 옵션이어야 합니다`);
+  }
+  if (spec.default !== undefined && !errors.length) {
+    const { error } = coerceOption(spec, spec.default);
+    if (error) errors.push(`${at}.default: ${error}`);
+  }
+  return errors;
+}
+
+/**
+ * 옵션 값 하나를 검사하고 맞는 형태로 바꿉니다. CLI(-o 모듈.키=값)에서 온 문자열도 받습니다.
+ * @param {import('../sdk/types.js').OptionSpec} spec
+ * @returns {{ value?: import('../sdk/types.js').OptionValue, error?: string }}
+ */
+export function coerceOption(spec, raw) {
+  switch (spec.type) {
+    case 'boolean': {
+      const value = raw === 'true' ? true : raw === 'false' ? false : raw;
+      return typeof value === 'boolean' ? { value } : { error: 'true 또는 false 여야 합니다' };
+    }
+    case 'number': {
+      const value = typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : raw;
+      if (typeof value !== 'number' || !Number.isFinite(value)) return { error: '숫자여야 합니다' };
+      if (spec.min !== undefined && value < spec.min) return { error: `${spec.min} 이상이어야 합니다` };
+      if (spec.max !== undefined && value > spec.max) return { error: `${spec.max} 이하여야 합니다` };
+      return { value };
+    }
+    case 'enum':
+      return spec.choices.includes(raw) ? { value: raw } : { error: `${spec.choices.join(', ')} 중 하나여야 합니다` };
+    case 'multi': {
+      const list = typeof raw === 'string' ? raw.split(',').map((s) => s.trim()).filter(Boolean) : raw;
+      if (!Array.isArray(list)) return { error: '선택지 배열이어야 합니다' };
+      const wrong = list.filter((v) => !spec.choices.includes(v));
+      if (wrong.length) return { error: `알 수 없는 선택지: ${wrong.join(', ')}` };
+      return { value: spec.choices.filter((c) => list.includes(c)) };
+    }
+    default: {
+      if (typeof raw !== 'string') return { error: '문자열이어야 합니다' };
+      const value = raw.trim();
+      if (spec.format === 'url' && value && !isHttpUrl(value)) return { error: 'http:// 또는 https:// 로 시작하는 주소여야 합니다' };
+      return { value };
+    }
+  }
+}
+
+function isHttpUrl(value) {
+  try {
+    return ['http:', 'https:'].includes(new URL(value).protocol);
+  } catch {
+    return false;
+  }
 }
 
 /** 모듈별 수치 검증 기준: 신뢰도 구간의 뜻과 벤치 정확도 목표 */
@@ -107,6 +173,13 @@ function validateI18n(t) {
     }
     for (const k of ['name', 'description']) if (v[k] !== undefined && !isStr(v[k])) errors.push(`i18n.${lang}.${k} 는 문자열이어야 합니다`);
     if (v.criteria !== undefined && !isStrArray(v.criteria)) errors.push(`i18n.${lang}.criteria 는 criteria.confidence 와 같은 순서의 문자열 배열이어야 합니다`);
+    if (v.options !== undefined) {
+      if (!v.options || typeof v.options !== 'object') errors.push(`i18n.${lang}.options 는 { 옵션: {...} } 객체여야 합니다`);
+      else for (const [key, o] of Object.entries(v.options)) {
+        for (const k of ['label', 'description', 'placeholder', 'unit']) if (o?.[k] !== undefined && !isStr(o[k])) errors.push(`i18n.${lang}.options.${key}.${k} 는 문자열이어야 합니다`);
+        if (o?.choiceLabels !== undefined && !(o.choiceLabels && typeof o.choiceLabels === 'object')) errors.push(`i18n.${lang}.options.${key}.choiceLabels 는 객체여야 합니다`);
+      }
+    }
   }
   return errors;
 }
@@ -164,14 +237,29 @@ export function resolveOptions(manifest, given = {}) {
   for (const [key, spec] of Object.entries(specs)) {
     if (spec.default !== undefined) out[key] = spec.default;
   }
-  for (const [key, value] of Object.entries(given)) {
+  for (const [key, raw] of Object.entries(given)) {
     const spec = specs[key];
     if (!spec) throw new Error(`${manifest.id}: 정의되지 않은 옵션 '${key}'`);
-    const ok = spec.type === 'enum' ? spec.choices.includes(value)
-      : spec.type === 'number' ? Number.isFinite(value)
-        : typeof value === spec.type;
-    if (!ok) throw new Error(`${manifest.id}: 옵션 '${key}' 의 값이 올바르지 않습니다`);
+    const { value, error } = coerceOption(spec, raw);
+    if (error) throw new Error(`${manifest.id}: 옵션 '${key}' — ${error}`);
     out[key] = value;
   }
   return out;
+}
+
+/**
+ * 저장된 설정처럼 오래됐을 수 있는 값에서 쓸 수 있는 것만 남깁니다 (모듈이 옵션을 바꾼 뒤에도 검사가 멈추지 않게).
+ * @returns {{ options: Record<string, import('../sdk/types.js').OptionValue>, dropped: string[] }}
+ */
+export function sanitizeOptions(manifest, given = {}) {
+  const specs = manifest.options ?? {};
+  /** @type {Record<string, import('../sdk/types.js').OptionValue>} */
+  const options = {};
+  const dropped = [];
+  for (const [key, raw] of Object.entries(given ?? {})) {
+    const { value, error } = specs[key] ? coerceOption(specs[key], raw) : { value: undefined, error: 'unknown' };
+    if (error) dropped.push(key);
+    else options[key] = value;
+  }
+  return { options, dropped };
 }

@@ -67,6 +67,8 @@ test/                  node:test 테스트
 
 - `src/sdk/types.d.ts` 는 모든 모듈의 계약입니다. 바꾸면 모든 모듈과 `docs/MODULE_GUIDE.md` 를 함께 고쳐야 합니다.
 - 러너 이벤트(`RunEvent`)는 CLI(`src/cli/render.js`)와 로컬 UI(`ui/src/lib/useRun.js`)가 함께 구독합니다. 이벤트 형태를 바꿀 때는 두 쪽을 모두 고칩니다.
+- 검사 결과(`run.json`, `RunResult`)는 기록 화면이 다시 읽습니다. 형태를 바꾸면 `src/server/history.js`(요약)와 `ui/src/lib/metrics.js`(화면 계산)를 함께 고치고, 옛 기록(필드가 없는 run.json)도 열리게 둡니다.
+- 모듈 옵션 값은 `<프로젝트>/.safescan/settings.json` 에 저장됩니다 (`src/core/settings.js`). 화면 · CLI · MCP 의 검사가 모두 이 값을 씁니다.
 - 변경 후 `npm test` 와 `node bin/safescan.js check` 를 실행합니다.
 
 ## UI 를 고칠 때
